@@ -6,36 +6,56 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#13100d",
-    "splash": { "backgroundColor": "#13100d" },
+    "splash": {
+      "backgroundColor": "#13100d"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.yourname.winepair",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
-      "adaptiveIcon": { "backgroundColor": "#13100d" },
+      "adaptiveIcon": {
+        "backgroundColor": "#13100d"
+      },
       "package": "com.yourname.winepair",
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "POST_NOTIFICATIONS"]
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
-      "react-native-reanimated/plugin",
-      ["expo-image-picker", {
-        "photosPermission": "Accesso alla galleria per scansionare il menù",
-        "cameraPermission": "Accesso alla fotocamera per fotografare il menù"
-      }],
-      ["expo-notifications", {
-        "icon": "./assets/notification-icon.png",
-        "color": "#c4667a"
-      }]
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Accesso alla galleria per scansionare il menù",
+          "cameraPermission": "Accesso alla fotocamera per fotografare il menù"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#c4667a"
+        }
+      ]
     ],
     "scheme": "winepair",
     "extra": {
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "200defb7-6b6c-4433-9dc9-a06b74a09f7f"
       }
-    }
+    },
+    "owner": "devan82"
   }
 }
