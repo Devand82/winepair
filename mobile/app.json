@@ -33,6 +33,14 @@
     "plugins": [
       "expo-router",
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.25"
+          }
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Accesso alla galleria per scansionare il menù",
