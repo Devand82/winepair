@@ -7,8 +7,8 @@ const KEYS = {
 } as const;
 
 const DEFAULTS = {
-  apiUrl: 'http://YOUR_HETZNER_IP:8000',
-  model: 'openai/gpt-4o-mini',
+  apiUrl: 'http://178.105.49.3:8000',
+  model: 'google/gemma-4-31b-it:free',
 } as const;
 
 export function useSettings() {

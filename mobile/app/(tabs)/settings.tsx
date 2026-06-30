@@ -15,6 +15,7 @@ import { useSettings } from '../../hooks/useSettings';
 import { api } from '../../services/api';
 
 const MODELS = [
+  { value: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B (Free)', desc: 'Gratuito · Vision ✗ · Con chiave OpenRouter' },
   { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', desc: 'Veloce · Economico · Vision ✓' },
   { value: 'openai/gpt-4o', label: 'GPT-4o', desc: 'Migliore qualità · Vision ✓' },
   { value: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash', desc: 'Veloce · Low cost · Vision ✓' },
