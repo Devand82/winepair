@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "WinePair",
+    "slug": "winepair",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#13100d",
+    "splash": { "backgroundColor": "#13100d" },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourname.winepair",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": { "backgroundColor": "#13100d" },
+      "package": "com.yourname.winepair",
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "POST_NOTIFICATIONS"]
+    },
+    "plugins": [
+      "expo-router",
+      "react-native-reanimated/plugin",
+      ["expo-image-picker", {
+        "photosPermission": "Accesso alla galleria per scansionare il menù",
+        "cameraPermission": "Accesso alla fotocamera per fotografare il menù"
+      }],
+      ["expo-notifications", {
+        "icon": "./assets/notification-icon.png",
+        "color": "#c4667a"
+      }]
+    ],
+    "scheme": "winepair",
+    "extra": {
+      "eas": {
+        "projectId": "your-eas-project-id"
+      }
+    }
+  }
+}
