@@ -63,14 +63,13 @@ class PairRequest(BaseModel):
 
 async def call_openrouter(messages, model):
     model = model or DEFAULT_MODEL
-    body = {
-        "model": model,
-        "messages": messages,
-        "temperature": 0.2,
-    }
-    if model != "openrouter/free":
-        body["response_format"] = {"type": "json_object"}
     async with httpx.AsyncClient(timeout=120) as client:
+        body = {
+            "model": model,
+            "messages": messages,
+            "response_format": {"type": "json_object"},
+            "temperature": 0.2,
+        }
         resp = await client.post(
             OPENROUTER_URL,
             headers={
