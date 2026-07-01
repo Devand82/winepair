@@ -100,18 +100,32 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
   const pickCamera = async () => {
     const ok = await requestCamera();
     if (!ok) return;
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        setImageUri(result.assets[0].uri);
+      }
+    } catch (e: any) {
+      Alert.alert('Errore fotocamera', e?.message || 'Impossibile aprire la fotocamera.');
     }
   };
 
   const pickGallery = async () => {
     const ok = await requestGallery();
     if (!ok) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
-    if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        setImageUri(result.assets[0].uri);
+      }
+    } catch (e: any) {
+      Alert.alert('Errore galleria', e?.message || 'Impossibile aprire la galleria.');
     }
   };
 
@@ -154,7 +168,11 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
       }
       onMenuExtracted(data);
     } catch (e: any) {
-      Alert.alert('Errore', e.message || 'Impossibile analizzare il menù.');
+      const msg = e.message || 'Impossibile analizzare il menù.';
+      const detail = imageUri
+        ? 'Errore durante l\'analisi dell\'immagine. Verifica che il server sia raggiungibile e riprova.'
+        : 'Verifica che il server sia raggiungibile e riprova.';
+      Alert.alert('Errore', `${msg}\n\n${detail}`);
     } finally {
       clearInterval(loadingInterval.current);
       setLoading(false);

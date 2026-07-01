@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 import httpx, base64, os, json
 from dotenv import load_dotenv
@@ -44,6 +44,13 @@ class Wine(BaseModel):
     menu_price: Optional[str] = ""
     glass_available: Optional[bool] = False
 
+    @field_validator("vintage", mode="before")
+    @classmethod
+    def coerce_vintage(cls, v):
+        if v is not None:
+            return str(v)
+        return v
+
 
 class MenuData(BaseModel):
     foods: List[Food]
@@ -63,32 +70,40 @@ class PairRequest(BaseModel):
 
 async def call_openrouter(messages, model):
     model = model or DEFAULT_MODEL
-    async with httpx.AsyncClient(timeout=120) as client:
-        body = {
-            "model": model,
-            "messages": messages,
-            "response_format": {"type": "json_object"},
-            "temperature": 0.2,
-        }
-        resp = await client.post(
-            OPENROUTER_URL,
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json=body,
-        )
-        if resp.status_code == 402:
-            raise HTTPException(402, "Credito OpenRouter insufficiente. Ricarica su openrouter.ai")
-        if resp.status_code == 429:
-            raise HTTPException(429, "Troppe richieste. Attendi qualche secondo e riprova.")
-        if resp.status_code != 200:
-            detail = resp.text or "Richiesta al server LLM fallita"
-            raise HTTPException(502, detail)
-        return resp.json()
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            body = {
+                "model": model,
+                "messages": messages,
+                "response_format": {"type": "json_object"},
+                "temperature": 0.2,
+            }
+            resp = await client.post(
+                OPENROUTER_URL,
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=body,
+            )
+            if resp.status_code == 402:
+                raise HTTPException(402, "Credito OpenRouter insufficiente. Ricarica su openrouter.ai")
+            if resp.status_code == 429:
+                raise HTTPException(429, "Troppe richieste. Attendi qualche secondo e riprova.")
+            if resp.status_code != 200:
+                detail = resp.text or "Richiesta al server LLM fallita"
+                raise HTTPException(502, detail)
+            return resp.json()
+    except httpx.TimeoutException:
+        raise HTTPException(504, "Il modello non risponde. Il free model potrebbe essere sovraccarico. Riprova o cambia modello nelle impostazioni.")
+    except httpx.RequestError as e:
+        raise HTTPException(502, f"Errore di connessione: {e}")
 
 
 def parse_json_response(raw: dict, endpoint: str):
+    if "choices" not in raw or not raw["choices"]:
+        detail = json.dumps(raw, ensure_ascii=False)[:300]
+        raise HTTPException(502, f"Risposta inattesa dal modello: {detail}")
     content = raw["choices"][0]["message"]["content"]
     try:
         data = json.loads(content)
