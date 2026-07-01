@@ -54,7 +54,8 @@
           "icon": "./assets/notification-icon.png",
           "color": "#c4667a"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "scheme": "winepair",
     "extra": {

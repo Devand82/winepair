@@ -8,20 +8,10 @@ import {
   Share,
   StyleSheet,
 } from 'react-native';
+import { colors, spacing, borderRadius, iconSize } from '../theme';
+import { AppIcon } from './ui/AppIcon';
+import { getWineAccent, getWineSoftBg } from '../theme/helpers';
 import type { PairingResult, Wine } from '../types';
-
-const TYPE_EMOJI: Record<string, string> = {
-  rosso: '🍷',
-  bianco: '🥂',
-  'rosè': '🌸',
-  spumante: '🍾',
-  dolce: '🍯',
-};
-
-function stars(score: number | undefined): string {
-  const n = Math.round((score ?? 0) / 2);
-  return '★'.repeat(n) + '☆'.repeat(5 - n);
-}
 
 interface Props {
   result: PairingResult;
@@ -29,6 +19,23 @@ interface Props {
   foodName: string;
   onBack: () => void;
   onNewMenu: () => void;
+}
+
+function StarRating({ score }: { score?: number }) {
+  const n = Math.round((score ?? 0) / 2);
+  return (
+    <View style={styles.starsRow}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <AppIcon
+          key={i}
+          name="star"
+          size={14}
+          color={i < n ? colors.accentYellow : colors.border}
+          strokeWidth={i < n ? 2.5 : 1.5}
+        />
+      ))}
+    </View>
+  );
 }
 
 export default function WineResult({
@@ -39,7 +46,8 @@ export default function WineResult({
   onNewMenu,
 }: Props) {
   const slideY = useRef(new Animated.Value(-30)).current;
-  const icon = TYPE_EMOJI[result.wine_type] || '🍷';
+  const wineAccent = getWineAccent(result.wine_type);
+  const wineSoftBg = getWineSoftBg(result.wine_type);
   const altWine =
     result.alternative_wine_index != null
       ? wines[result.alternative_wine_index]
@@ -55,19 +63,19 @@ export default function WineResult({
   }, [slideY]);
 
   const shareResult = () => {
+    const starsDisplay = '★'.repeat(Math.round((result.food_match_score || 0) / 2)) +
+      '☆'.repeat(5 - Math.round((result.food_match_score || 0) / 2));
     const message = [
-      `🍷 WinePair — Abbinamento per "${foodName}"`,
+      `WinePair — Abbinamento per "${foodName}"`,
       '',
-      `${icon} ${result.wine_name}`,
-      result.region
-        ? `📍 ${result.region}${result.vintage ? ' · ' + result.vintage : ''}`
-        : '',
+      `${result.wine_name}`,
+      result.region ? `${result.region}${result.vintage ? ' · ' + result.vintage : ''}` : '',
       result.menu_price ? `💰 ${result.menu_price} nel menù` : '',
       result.avg_market_price ? `   Mercato: ~${result.avg_market_price}` : '',
       '',
       result.pairing_reason ? `"${result.pairing_reason}"` : '',
       '',
-      `Score: ${result.food_match_score || '–'}/10  ${stars(result.food_match_score)}`,
+      `Score: ${result.food_match_score || '–'}/10  ${starsDisplay}`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -80,109 +88,101 @@ export default function WineResult({
       contentContainerStyle={styles.content}
     >
       <View style={styles.headerRow}>
-        <Text style={styles.headerLabel}>Per · {foodName}</Text>
+        <View style={styles.headerLeft}>
+          <AppIcon name="utensils" size={14} color={colors.textSecondary} />
+          <Text style={styles.headerLabel}>{foodName}</Text>
+        </View>
         <TouchableOpacity style={styles.shareBtn} onPress={shareResult} activeOpacity={0.75}>
-          <Text style={styles.shareBtnText}>↑ Condividi</Text>
+          <AppIcon name="share" size={14} color={colors.accentRed} />
+          <Text style={styles.shareBtnText}>Condividi</Text>
         </TouchableOpacity>
       </View>
 
       <Animated.View
         style={[styles.wineCard, { transform: [{ translateY: slideY }] }]}
       >
-        <Text style={styles.wineEmoji}>{icon}</Text>
+        <View style={[styles.wineIconWrap, { backgroundColor: wineSoftBg }]}>
+          <AppIcon name="wine" size={28} color={wineAccent} />
+        </View>
         <Text style={styles.wineName}>{result.wine_name}</Text>
 
         <View style={styles.badgeRow}>
-          <View style={styles.badgeType}>
-            <Text style={styles.badgeTypeText}>{result.wine_type}</Text>
+          <View style={[styles.badge, { backgroundColor: wineSoftBg }]}>
+            <Text style={[styles.badgeText, { color: wineAccent }]}>
+              {result.wine_type}
+            </Text>
           </View>
           {result.region ? (
-            <View style={styles.badgeRegion}>
-              <Text style={styles.badgeRegionText}>{result.region}</Text>
+            <View style={[styles.badge, { backgroundColor: colors.surfaceSoft }]}>
+              <Text style={[styles.badgeText, { color: colors.textSecondary }]}>
+                {result.region}
+              </Text>
             </View>
           ) : null}
           {result.vintage ? (
-            <View style={styles.badgeVintage}>
-              <Text style={styles.badgeVintageText}>{result.vintage}</Text>
+            <View style={[styles.badge, { backgroundColor: colors.surfaceSoft }]}>
+              <Text style={[styles.badgeText, { color: colors.textSecondary }]}>
+                {result.vintage}
+              </Text>
             </View>
           ) : null}
         </View>
 
         <View style={styles.priceRow}>
           {result.menu_price ? (
-            <View>
-              <Text style={styles.priceLabel}>NEL MENÙ</Text>
+            <View style={styles.priceBlock}>
+              <Text style={styles.priceLabel}>Nel menù</Text>
               <Text style={styles.priceValue}>{result.menu_price}</Text>
             </View>
           ) : null}
           {result.avg_market_price ? (
-            <View>
-              <Text style={styles.priceLabel}>MERCATO ~</Text>
+            <View style={styles.priceBlock}>
+              <Text style={styles.priceLabel}>Mercato</Text>
               <Text style={styles.marketValue}>{result.avg_market_price}</Text>
             </View>
           ) : null}
-          <View style={styles.scoreBlock}>
-            <Text style={styles.stars}>
-              {stars(result.food_match_score)}
-            </Text>
-            <Text style={styles.scoreNum}>
-              {result.food_match_score || '–'}/10
-            </Text>
-          </View>
+          {result.food_match_score ? (
+            <View style={styles.scoreBlock}>
+              <Text style={styles.scoreNum}>{result.food_match_score}/10</Text>
+              <StarRating score={result.food_match_score} />
+            </View>
+          ) : null}
         </View>
       </Animated.View>
 
       <View style={styles.detailGrid}>
         <View style={styles.detailRow}>
-          {result.color ? (
-            <View style={styles.detailBlock}>
-              <Text style={styles.detailLabel}>🎨 COLORE</Text>
-              <Text style={styles.detailValue}>{result.color}</Text>
-            </View>
-          ) : null}
-          {result.nose ? (
-            <View style={styles.detailBlock}>
-              <Text style={styles.detailLabel}>👃 PROFUMI</Text>
-              <Text style={styles.detailValue}>{result.nose}</Text>
-            </View>
-          ) : null}
+          <DetailMiniCard icon="search" label="Colore" value={result.color} />
+          <DetailMiniCard icon="sparkle" label="Profumi" value={result.nose} />
         </View>
         <View style={styles.detailRow}>
-          {result.palate ? (
-            <View style={styles.detailBlock}>
-              <Text style={styles.detailLabel}>👅 GUSTO</Text>
-              <Text style={styles.detailValue}>{result.palate}</Text>
-            </View>
-          ) : null}
-          {result.temperature ? (
-            <View style={styles.detailBlock}>
-              <Text style={styles.detailLabel}>🌡️ SERVIZIO</Text>
-              <Text style={styles.detailValue}>{result.temperature}</Text>
-            </View>
-          ) : null}
+          <DetailMiniCard icon="wine" label="Gusto" value={result.palate} />
+          <DetailMiniCard icon="search" label="Servizio" value={result.temperature} />
         </View>
       </View>
 
       {result.pairing_reason ? (
         <View style={styles.reasonCard}>
-          <Text style={styles.reasonLabel}>
-            🎯 PERCHÉ QUESTO ABBINAMENTO
-          </Text>
+          <View style={styles.reasonHeader}>
+            <AppIcon name="sparkle" size={14} color={colors.accentRed} />
+            <Text style={styles.reasonLabel}>Perché questo abbinamento</Text>
+          </View>
           <Text style={styles.reasonText}>{result.pairing_reason}</Text>
           {result.pairing_principle ? (
-            <Text style={styles.principle}>
-              Principio: {result.pairing_principle}
-            </Text>
+            <View style={styles.principleRow}>
+              <Text style={styles.principleLabel}>Principio</Text>
+              <Text style={styles.principleValue}>{result.pairing_principle}</Text>
+            </View>
           ) : null}
         </View>
       ) : null}
 
       {altWine ? (
         <View style={styles.altCard}>
-          <Text style={styles.altLabel}>ALTERNATIVA DISPONIBILE</Text>
+          <Text style={styles.altLabel}>Alternativa disponibile</Text>
           <Text style={styles.altName}>{altWine.name}</Text>
           <Text style={styles.altDesc}>
-            {altWine.type} · {altWine.region}
+            {altWine.type}{altWine.region ? ` · ${altWine.region}` : ''}
           </Text>
           {altWine.menu_price ? (
             <Text style={styles.altPrice}>{altWine.menu_price}</Text>
@@ -195,266 +195,320 @@ export default function WineResult({
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.75}>
-          <Text style={styles.backBtnText}>← Cambia piatto</Text>
+          <View style={styles.backBtnInner}>
+            <AppIcon name="chevron-left" size={iconSize.sm} color={colors.textPrimary} />
+            <Text style={styles.backBtnText}>Cambia piatto</Text>
+          </View>
         </TouchableOpacity>
         <TouchableOpacity style={styles.newMenuBtn} onPress={onNewMenu} activeOpacity={0.75}>
-          <Text style={styles.newMenuBtnText}>🔄 Nuovo menù</Text>
+          <View style={styles.backBtnInner}>
+            <AppIcon name="search" size={iconSize.sm} color="#fff" />
+            <Text style={styles.newMenuBtnText}>Nuovo menù</Text>
+          </View>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
+function DetailMiniCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: 'search' | 'sparkle' | 'wine';
+  label: string;
+  value?: string;
+}) {
+  if (!value) return null;
+  return (
+    <View style={styles.detailBlock}>
+      <View style={styles.detailHeader}>
+        <AppIcon name={icon} size={12} color={colors.textSecondary} />
+        <Text style={styles.detailLabel}>{label}</Text>
+      </View>
+      <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#13100d',
+    backgroundColor: colors.background,
   },
   content: {
-    padding: 20,
+    padding: spacing.lg,
     paddingBottom: 100,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
   },
   headerLabel: {
-    textTransform: 'uppercase',
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#5c5248',
-    flex: 1,
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   shareBtn: {
-    backgroundColor: '#28231d',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
     borderWidth: 1,
-    borderColor: '#3a342c',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderColor: colors.border,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs + 2,
   },
   shareBtnText: {
-    color: '#c4667a',
+    color: colors.accentRed,
     fontSize: 13,
     fontWeight: '600',
   },
   wineCard: {
-    backgroundColor: '#1e1a16',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(196,102,122,0.3)',
-    borderRadius: 18,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
+    borderColor: colors.border,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    shadowColor: colors.textPrimary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    alignItems: 'center',
   },
-  wineEmoji: {
-    fontSize: 40,
-    marginBottom: 10,
+  wineIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
   wineName: {
-    fontFamily: 'serif',
+    fontFamily: 'PlayfairDisplay_700Bold',
     fontSize: 22,
-    fontWeight: '700',
-    color: '#e8e0d4',
+    color: colors.textPrimary,
     lineHeight: 28,
-    marginBottom: 12,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+    gap: spacing.xs,
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
   },
-  badgeType: {
-    backgroundColor: '#3a2028',
-    borderRadius: 99,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  badge: {
+    borderRadius: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs + 1,
   },
-  badgeTypeText: {
-    color: '#c4667a',
+  badgeText: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  badgeRegion: {
-    backgroundColor: '#3d3018',
-    borderRadius: 99,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  badgeRegionText: {
-    color: '#e8a832',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  badgeVintage: {
-    backgroundColor: '#28231d',
-    borderWidth: 1,
-    borderColor: '#3a342c',
-    borderRadius: 99,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  badgeVintageText: {
-    color: '#9a8e7e',
-    fontSize: 12,
   },
   priceRow: {
     flexDirection: 'row',
-    gap: 20,
+    gap: spacing.xl,
     alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  priceBlock: {
+    alignItems: 'center',
   },
   priceLabel: {
-    textTransform: 'uppercase',
     fontSize: 11,
-    color: '#5c5248',
-    marginBottom: 2,
+    color: colors.textSecondary,
+    marginBottom: spacing.xxs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   priceValue: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#e8a832',
-    fontFamily: 'serif',
+    color: colors.accentYellow,
+    fontFamily: 'PlayfairDisplay_700Bold',
   },
   marketValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#9a8e7e',
+    color: colors.textSecondary,
   },
-  scoreBlock: {},
-  stars: {
-    fontSize: 16,
-    color: '#e8a832',
-    letterSpacing: 2,
+  scoreBlock: {
+    alignItems: 'center',
   },
   scoreNum: {
-    fontSize: 12,
-    color: '#9a8e7e',
-    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.xxs,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 1,
   },
   detailGrid: {
-    gap: 10,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   detailRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.sm,
   },
   detailBlock: {
     flex: 1,
-    backgroundColor: '#1e1a16',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#2c271f',
-    borderRadius: 12,
-    padding: 14,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    marginBottom: spacing.xs,
   },
   detailLabel: {
     textTransform: 'uppercase',
-    fontSize: 11,
-    color: '#5c5248',
+    fontSize: 10,
+    color: colors.textSecondary,
     fontWeight: '600',
     letterSpacing: 0.7,
-    marginBottom: 6,
   },
   detailValue: {
     fontSize: 14,
-    color: '#e8e0d4',
+    color: colors.textPrimary,
     lineHeight: 20,
   },
   reasonCard: {
-    backgroundColor: '#3a2028',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  reasonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    marginBottom: spacing.sm,
   },
   reasonLabel: {
     textTransform: 'uppercase',
-    color: '#c4667a',
-    fontSize: 12,
+    color: colors.accentRed,
+    fontSize: 11,
     fontWeight: '700',
-    marginBottom: 10,
+    letterSpacing: 0.5,
   },
   reasonText: {
-    fontFamily: 'serif',
+    fontFamily: 'PlayfairDisplay_400Regular',
     fontSize: 15,
-    color: '#e8e0d4',
+    color: colors.textPrimary,
     lineHeight: 24,
     fontStyle: 'italic',
-    marginBottom: 10,
+    marginBottom: spacing.sm,
   },
-  principle: {
-    color: '#c4667a',
-    fontSize: 12,
+  principleRow: {
+    flexDirection: 'row',
+    gap: spacing.xxs,
+    alignItems: 'center',
+  },
+  principleLabel: {
+    color: colors.textSecondary,
+    fontSize: 11,
     fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  principleValue: {
+    color: colors.accentRed,
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   altCard: {
-    backgroundColor: '#1e1a16',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#3a342c',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
   altLabel: {
     textTransform: 'uppercase',
-    color: '#5c5248',
-    fontSize: 11,
+    color: colors.textSecondary,
+    fontSize: 10,
     fontWeight: '600',
-    marginBottom: 8,
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
   },
   altName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#e8e0d4',
-    marginBottom: 4,
+    color: colors.textPrimary,
+    marginBottom: spacing.xxs,
   },
   altDesc: {
     fontSize: 12,
-    color: '#9a8e7e',
-    marginBottom: 4,
+    color: colors.textSecondary,
+    marginBottom: spacing.xxs,
   },
   altPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#e8a832',
-    marginBottom: 4,
+    color: colors.accentYellow,
+    marginBottom: spacing.xxs,
   },
   altNote: {
     fontSize: 13,
-    color: '#9a8e7e',
+    color: colors.textSecondary,
     fontStyle: 'italic',
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   backBtn: {
     flex: 1,
-    backgroundColor: '#28231d',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#3a342c',
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
   },
   backBtnText: {
-    color: '#e8e0d4',
+    color: colors.textPrimary,
     fontWeight: '600',
     fontSize: 14,
   },
   newMenuBtn: {
     flex: 1,
-    backgroundColor: '#c4667a',
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: colors.accentRed,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   newMenuBtnText: {
     color: '#fff',

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
+import { colors, spacing } from '../theme';
+import { AppIcon } from './ui/AppIcon';
 
 const MESSAGES = [
   'Analizzando i profili aromatici…',
@@ -9,21 +11,21 @@ const MESSAGES = [
   'Quasi pronto…',
 ];
 
-function BounceDot({ delay }: { delay: number }) {
-  const translateY = useRef(new Animated.Value(0)).current;
+function Dot({ delay }: { delay: number }) {
+  const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.delay(delay),
-        Animated.timing(translateY, {
-          toValue: -10,
-          duration: 280,
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 400,
           useNativeDriver: true,
         }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 280,
+        Animated.timing(opacity, {
+          toValue: 0.3,
+          duration: 400,
           useNativeDriver: true,
         }),
         Animated.delay(500),
@@ -31,50 +33,46 @@ function BounceDot({ delay }: { delay: number }) {
     );
     loop.start();
     return () => loop.stop();
-  }, [delay, translateY]);
+  }, [delay, opacity]);
 
-  return (
-    <Animated.View
-      style={[styles.dot, { transform: [{ translateY }] }]}
-    />
-  );
+  return <Animated.View style={[styles.dot, { opacity }]} />;
 }
 
 export default function LoadingWine() {
-  const wineOpacity = useRef(new Animated.Value(1)).current;
+  const iconOpacity = useRef(new Animated.Value(0.6)).current;
   const textOpacity = useRef(new Animated.Value(1)).current;
   const [msgIdx, setMsgIdx] = useState(0);
 
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(wineOpacity, {
-          toValue: 0.4,
-          duration: 900,
+        Animated.timing(iconOpacity, {
+          toValue: 0.3,
+          duration: 1200,
           useNativeDriver: true,
         }),
-        Animated.timing(wineOpacity, {
-          toValue: 1,
-          duration: 900,
+        Animated.timing(iconOpacity, {
+          toValue: 0.6,
+          duration: 1200,
           useNativeDriver: true,
         }),
       ]),
     );
     loop.start();
     return () => loop.stop();
-  }, [wineOpacity]);
+  }, [iconOpacity]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       Animated.sequence([
         Animated.timing(textOpacity, {
           toValue: 0,
-          duration: 300,
+          duration: 200,
           useNativeDriver: true,
         }),
         Animated.timing(textOpacity, {
           toValue: 1,
-          duration: 300,
+          duration: 200,
           useNativeDriver: true,
         }),
       ]).start();
@@ -85,16 +83,16 @@ export default function LoadingWine() {
 
   return (
     <View style={styles.container}>
-      <Animated.Text style={[styles.emoji, { opacity: wineOpacity }]}>
-        🍷
-      </Animated.Text>
+      <Animated.View style={[styles.iconWrap, { opacity: iconOpacity }]}>
+        <AppIcon name="wine" size={48} color={colors.accentRed} />
+      </Animated.View>
       <Animated.Text style={[styles.message, { opacity: textOpacity }]}>
         {MESSAGES[msgIdx]}
       </Animated.Text>
       <View style={styles.dotsRow}>
-        <BounceDot delay={0} />
-        <BounceDot delay={200} />
-        <BounceDot delay={400} />
+        <Dot delay={0} />
+        <Dot delay={200} />
+        <Dot delay={400} />
       </View>
     </View>
   );
@@ -105,28 +103,35 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#13100d',
+    backgroundColor: colors.background,
   },
-  emoji: {
-    fontSize: 56,
-    marginBottom: 0,
+  iconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
   },
   message: {
     fontSize: 15,
-    color: '#9a8e7e',
+    color: colors.textSecondary,
     textAlign: 'center',
     maxWidth: 260,
     lineHeight: 22,
-    marginVertical: 32,
+    marginBottom: spacing.lg,
+    fontFamily: 'PlayfairDisplay_400Regular',
+    fontStyle: 'italic',
   },
   dotsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.xs,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#c4667a',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accentRed,
   },
 });

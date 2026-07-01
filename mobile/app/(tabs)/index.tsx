@@ -10,6 +10,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors, spacing, iconSize } from '../../theme';
+import { AppIcon } from '../../components/ui/AppIcon';
 import { useSettings } from '../../hooks/useSettings';
 import { api } from '../../services/api';
 import { offlineCache } from '../../services/offlineCache';
@@ -105,16 +107,20 @@ export default function HomeScreen() {
           <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
             {step === 'scan' && (
               <View style={styles.headerRow}>
-                <Text style={styles.logo}>🍷 WinePair</Text>
+                <View style={styles.logoRow}>
+                  <AppIcon name="wine" size={iconSize.lg} color={colors.accentRed} />
+                  <Text style={styles.logo}>WinePair</Text>
+                </View>
                 <TouchableOpacity onPress={() => router.push('/settings')} activeOpacity={0.75}>
-                  <Text style={styles.settingsIcon}>⚙️</Text>
+                  <AppIcon name="settings" size={iconSize.md} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
             )}
             {step === 'foods' && (
               <View style={styles.headerRow}>
-              <TouchableOpacity onPress={() => { setStep('scan'); setSelectedIdx(null); }} activeOpacity={0.75}>
-                <Text style={styles.backText}>← Indietro</Text>
+              <TouchableOpacity onPress={() => { setStep('scan'); setSelectedIdx(null); }} activeOpacity={0.75} style={styles.backRow}>
+                <AppIcon name="chevron-left" size={iconSize.sm} color={colors.accentRed} />
+                <Text style={styles.backText}>Indietro</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Scegli il piatto</Text>
                 <View style={styles.headerSpacer} />
@@ -122,8 +128,9 @@ export default function HomeScreen() {
             )}
             {step === 'result' && (
               <View style={styles.headerRow}>
-              <TouchableOpacity onPress={() => setStep('foods')} activeOpacity={0.75}>
-                <Text style={styles.backText}>← Indietro</Text>
+              <TouchableOpacity onPress={() => setStep('foods')} activeOpacity={0.75} style={styles.backRow}>
+                <AppIcon name="chevron-left" size={iconSize.sm} color={colors.accentRed} />
+                <Text style={styles.backText}>Indietro</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Abbinamento</Text>
                 <View style={styles.headerSpacer} />
@@ -136,7 +143,7 @@ export default function HomeScreen() {
                 key={s}
                 style={[
                   styles.progressSegment,
-                  { backgroundColor: i <= stepIndex ? '#c4667a' : '#2c271f' },
+                  { backgroundColor: i <= stepIndex ? colors.accentRed : colors.border },
                 ]}
               />
             ))}
@@ -179,9 +186,12 @@ export default function HomeScreen() {
               activeOpacity={0.75}
               onPress={pairWine}
             >
-              <Text style={styles.stickyBtnText}>
-                🍷 Abbina vino a '{menuData.foods[selectedIdx ?? 0]?.name ?? ''}'
-              </Text>
+              <View style={styles.stickyBtnInner}>
+                <AppIcon name="wine" size={iconSize.sm} color="#fff" />
+                <Text style={styles.stickyBtnText}>
+                  Abbina vino a '{menuData.foods[selectedIdx ?? 0]?.name ?? ''}'
+                </Text>
+              </View>
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -201,43 +211,50 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#13100d' },
+  root: { flex: 1, backgroundColor: colors.background },
   header: {
-    backgroundColor: '#191512',
-    borderBottomWidth: 1,
-    borderBottomColor: '#2c271f',
-    paddingBottom: 12,
-    paddingHorizontal: 20,
+    backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  logo: {
-    fontFamily: 'serif',
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#e8e0d4',
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
-  settingsIcon: { fontSize: 20 },
+  logo: {
+    fontFamily: 'PlayfairDisplay_700Bold',
+    fontSize: 22,
+    color: colors.textPrimary,
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
   backText: {
-    color: '#c4667a',
+    color: colors.accentRed,
     fontSize: 15,
     fontWeight: '600',
   },
   headerTitle: {
-    fontFamily: 'serif',
+    fontFamily: 'PlayfairDisplay_700Bold',
     fontSize: 18,
-    fontWeight: '700',
-    color: '#e8e0d4',
+    color: colors.textPrimary,
   },
   headerSpacer: { width: 80 },
   progressBar: {
     flexDirection: 'row',
-    gap: 4,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
   },
   progressSegment: {
     flex: 1,
@@ -246,32 +263,37 @@ const styles = StyleSheet.create({
   },
   foodsContainer: { flex: 1, position: 'relative' },
   counterBar: {
-    backgroundColor: '#13100d',
-    borderBottomWidth: 1,
-    borderBottomColor: '#2c271f',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    backgroundColor: colors.surfaceSoft,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
   },
   counterText: {
     fontSize: 13,
-    color: '#9a8e7e',
+    color: colors.textSecondary,
   },
   stickyBtnWrap: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(19,16,13,0.97)',
-    borderTopWidth: 1,
-    borderTopColor: '#2c271f',
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    backgroundColor: colors.background,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
   stickyBtn: {
-    backgroundColor: '#c4667a',
+    backgroundColor: colors.accentRed,
     borderRadius: 14,
     paddingVertical: 18,
     alignItems: 'center',
+  },
+  stickyBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   stickyBtnText: {
     color: '#fff',

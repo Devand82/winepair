@@ -1,21 +1,40 @@
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
+import { colors, spacing, iconSize } from '../../theme';
+import { AppIcon } from '../../components/ui/AppIcon';
+import type { IconName } from '../../components/ui/AppIcon';
 
-function TabIcon({ focused, emoji, label }: { focused: boolean; emoji: string; label: string }) {
+function TabIcon({ focused, icon, label }: { focused: boolean; icon: IconName; label: string }) {
   return (
-    <View style={tabIcon.container}>
-      <Text style={[tabIcon.emoji, focused && tabIcon.emojiFocused]}>{emoji}</Text>
-      <Text style={[tabIcon.label, focused && tabIcon.labelFocused]}>{label}</Text>
+    <View style={tabIconStyles.container}>
+      <AppIcon
+        name={icon}
+        size={focused ? iconSize.lg : iconSize.md}
+        color={focused ? colors.accentRed : colors.textSecondary}
+      />
+      <Text style={[tabIconStyles.label, focused && tabIconStyles.labelFocused]}>
+        {label}
+      </Text>
     </View>
   );
 }
 
-const tabIcon = StyleSheet.create({
-  container: { alignItems: 'center', gap: 2 },
-  emoji: { fontSize: 20 },
-  emojiFocused: { fontSize: 24 },
-  label: { fontSize: 10, color: '#5c5248', fontWeight: '400' },
-  labelFocused: { color: '#c4667a', fontWeight: '700' },
+const tabIconStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingTop: spacing.xs,
+  },
+  label: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  labelFocused: {
+    color: colors.accentRed,
+    fontWeight: '600',
+  },
 });
 
 export default function TabsLayout() {
@@ -24,10 +43,10 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#191512',
-          borderTopColor: '#2c271f',
-          borderTopWidth: 1,
-          height: 72,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          height: 64,
         },
         tabBarShowLabel: false,
       }}
@@ -35,7 +54,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="🍷" label="Abbina" />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} icon="wine" label="Abbina" />
+          ),
         }}
       />
       <Tabs.Screen
@@ -43,12 +64,17 @@ export default function TabsLayout() {
         options={{
           headerShown: true,
           headerTitle: 'Cronologia',
-          headerStyle: { backgroundColor: '#191512' },
-          headerTintColor: '#e8e0d4',
-          headerTitleStyle: { fontFamily: 'serif', fontSize: 20, color: '#e8e0d4', fontWeight: '700' },
+          headerStyle: { backgroundColor: colors.surface },
+          headerTitleStyle: {
+            fontFamily: 'PlayfairDisplay_700Bold',
+            fontSize: 20,
+            color: colors.textPrimary,
+          },
           headerShadowVisible: false,
           headerTitleAlign: 'center',
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="📋" label="Cronologia" />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} icon="history" label="Cronologia" />
+          ),
         }}
       />
       <Tabs.Screen
@@ -56,12 +82,17 @@ export default function TabsLayout() {
         options={{
           headerShown: true,
           headerTitle: 'Impostazioni',
-          headerStyle: { backgroundColor: '#191512' },
-          headerTintColor: '#e8e0d4',
-          headerTitleStyle: { fontFamily: 'serif', fontSize: 20, color: '#e8e0d4', fontWeight: '700' },
+          headerStyle: { backgroundColor: colors.surface },
+          headerTitleStyle: {
+            fontFamily: 'PlayfairDisplay_700Bold',
+            fontSize: 20,
+            color: colors.textPrimary,
+          },
           headerShadowVisible: false,
           headerTitleAlign: 'center',
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} emoji="⚙️" label="Impostazioni" />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} icon="settings" label="Impostazioni" />
+          ),
         }}
       />
     </Tabs>

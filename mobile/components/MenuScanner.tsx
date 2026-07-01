@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { colors, spacing, borderRadius, iconSize } from '../theme';
+import { AppIcon } from './ui/AppIcon';
 import { useSettings } from '../hooks/useSettings';
 import { api } from '../services/api';
 import type { MenuData } from '../types';
@@ -190,26 +192,26 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.title}>Scannerizza il Menù</Text>
-        <Text style={styles.subtitle}>Scatta una foto o incolla il testo</Text>
+        <Text style={styles.subtitle}>Scatta una foto o incolla il testo del menù</Text>
 
         <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={styles.cameraBtn}
+            style={styles.primaryBtn}
             onPress={pickCamera}
             disabled={loading}
             activeOpacity={0.75}
           >
-            <Text style={styles.btnEmoji}>📷</Text>
-            <Text style={styles.btnTextLight}>Fotocamera</Text>
+            <AppIcon name="camera" size={iconSize.lg} color="#fff" />
+            <Text style={styles.primaryBtnText}>Fotocamera</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.galleryBtn}
+            style={styles.outlineBtn}
             onPress={pickGallery}
             disabled={loading}
             activeOpacity={0.75}
           >
-            <Text style={styles.btnEmoji}>🖼️</Text>
-            <Text style={styles.btnTextDark}>Galleria</Text>
+            <AppIcon name="image" size={iconSize.lg} color={colors.textPrimary} />
+            <Text style={styles.outlineBtnText}>Galleria</Text>
           </TouchableOpacity>
         </View>
 
@@ -226,7 +228,8 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
               onPress={() => setImageUri(null)}
               activeOpacity={0.75}
             >
-              <Text style={styles.removeBtnText}>✕ Rimuovi</Text>
+              <AppIcon name="close" size={14} color={colors.accentRed} />
+              <Text style={styles.removeBtnText}>Rimuovi</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -249,21 +252,22 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
           onChangeText={setMenuText}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder="Incolla qui il testo del menù…
-Includi sia i piatti che la carta vini"
-          placeholderTextColor="#5c5248"
+          placeholder="Incolla qui il testo del menù…"
+          placeholderTextColor={colors.textSecondary}
           editable={!loading}
         />
         <TouchableOpacity
           onPress={() => setMenuText(SAMPLE_MENU)}
           disabled={loading}
           activeOpacity={0.75}
+          style={styles.sampleRow}
         >
-          <Text style={styles.sampleLink}>📋 Carica menù di esempio</Text>
+          <AppIcon name="sparkle" size={14} color={colors.accentRed} />
+          <Text style={styles.sampleLink}>Carica menù di esempio</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + spacing.sm }]}>
         <TouchableOpacity
           style={[styles.analyzeBtn, loading && styles.analyzeBtnDisabled]}
           onPress={handleAnalyze}
@@ -276,7 +280,10 @@ Includi sia i piatti che la carta vini"
               <Text style={styles.analyzeBtnText}>{loadingText}</Text>
             </View>
           ) : (
-            <Text style={styles.analyzeBtnText}>🔍 Analizza Menù</Text>
+            <View style={styles.loadingRow}>
+              <AppIcon name="search" size={iconSize.md} color="#fff" />
+              <Text style={styles.analyzeBtnText}>Analizza Menù</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -287,146 +294,155 @@ Includi sia i piatti che la carta vini"
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#13100d',
+    backgroundColor: colors.background,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: spacing.lg,
     paddingBottom: 100,
   },
   title: {
-    fontFamily: 'serif',
+    fontFamily: 'PlayfairDisplay_700Bold',
     fontSize: 26,
-    fontWeight: '700',
-    color: '#e8e0d4',
+    color: colors.textPrimary,
+    marginBottom: spacing.xxs,
   },
   subtitle: {
     fontSize: 14,
-    color: '#9a8e7e',
-    marginBottom: 24,
+    color: colors.textSecondary,
+    marginBottom: spacing.xl,
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  cameraBtn: {
+  primaryBtn: {
     flex: 1,
-    backgroundColor: '#c4667a',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.accentRed,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
     alignItems: 'center',
+    gap: spacing.xs,
   },
-  galleryBtn: {
-    flex: 1,
-    backgroundColor: '#1e1a16',
-    borderWidth: 1,
-    borderColor: '#3a342c',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  btnEmoji: {
-    fontSize: 28,
-    marginBottom: 4,
-  },
-  btnTextLight: {
+  primaryBtnText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },
-  btnTextDark: {
-    color: '#e8e0d4',
+  outlineBtn: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  outlineBtnText: {
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '600',
   },
   previewSection: {
-    marginBottom: 8,
+    marginBottom: spacing.xs,
+    gap: spacing.xs,
   },
   preview: {
     height: 220,
     width: '100%',
-    borderRadius: 12,
+    borderRadius: borderRadius.lg,
     resizeMode: 'contain',
-    backgroundColor: '#1e1a16',
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   visionNote: {
-    color: '#9a8e7e',
+    color: colors.textSecondary,
     fontSize: 12,
     fontStyle: 'italic',
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 4,
   },
   removeBtn: {
-    backgroundColor: '#28231d',
-    padding: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    borderRadius: 10,
+    justifyContent: 'center',
+    gap: spacing.xxs,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   removeBtnText: {
-    color: '#c4667a',
+    color: colors.accentRed,
     fontSize: 13,
     fontWeight: '600',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginVertical: 20,
+    gap: spacing.sm,
+    marginVertical: spacing.lg,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: '#2c271f',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
   },
   dividerText: {
-    color: '#5c5248',
-    fontSize: 13,
+    color: colors.textSecondary,
+    fontSize: 12,
   },
   inputLabel: {
     textTransform: 'uppercase',
     fontSize: 11,
-    color: '#5c5248',
+    color: colors.textSecondary,
     fontWeight: '600',
     letterSpacing: 0.8,
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   input: {
-    backgroundColor: '#1e1a16',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#3a342c',
-    borderRadius: 12,
-    padding: 14,
-    color: '#e8e0d4',
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    color: colors.textPrimary,
     fontSize: 14,
     lineHeight: 22,
     textAlignVertical: 'top',
   },
   inputFocused: {
-    borderColor: '#c4667a',
+    borderColor: colors.accentRed,
+  },
+  sampleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    marginTop: spacing.sm,
   },
   sampleLink: {
-    color: '#c4667a',
-    textDecorationLine: 'underline',
+    color: colors.accentRed,
     fontSize: 14,
-    marginTop: 10,
+    fontWeight: '500',
   },
   stickyBottom: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(19,16,13,0.97)',
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    backgroundColor: colors.background,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
   analyzeBtn: {
-    backgroundColor: '#c4667a',
-    borderRadius: 14,
+    backgroundColor: colors.accentRed,
+    borderRadius: borderRadius.lg,
     paddingVertical: 18,
     alignItems: 'center',
   },
@@ -441,6 +457,6 @@ const styles = StyleSheet.create({
   loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm,
   },
 });

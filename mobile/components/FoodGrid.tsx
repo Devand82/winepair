@@ -7,6 +7,8 @@ import {
   Animated,
   StyleSheet,
 } from 'react-native';
+import { colors, spacing, borderRadius } from '../theme';
+import { AppIcon } from './ui/AppIcon';
 import type { Food } from '../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -40,12 +42,14 @@ export default function FoodGrid({ foods, selectedIndex, onSelect }: Props) {
     const handlePress = () => {
       Animated.sequence([
         Animated.spring(scale, {
-          toValue: 1.04,
+          toValue: 1.03,
           useNativeDriver: true,
+          speed: 30,
         }),
         Animated.spring(scale, {
           toValue: 1,
           useNativeDriver: true,
+          speed: 30,
         }),
       ]).start();
       onSelect(index);
@@ -56,23 +60,27 @@ export default function FoodGrid({ foods, selectedIndex, onSelect }: Props) {
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={handlePress}
-          style={[
-            styles.card,
-            selected && styles.cardSelected,
-          ]}
+          style={[styles.card, selected && styles.cardSelected]}
         >
           <Text style={styles.emoji}>{item.emoji}</Text>
           <Text style={[styles.name, selected && styles.nameSelected]}>
             {item.name}
           </Text>
-          <Text style={styles.category}>
-            {CATEGORY_LABELS[item.category] || item.category}
-          </Text>
+          <View style={[styles.categoryPill, selected && styles.categoryPillSelected]}>
+            <Text style={[styles.categoryText, selected && styles.categoryTextSelected]}>
+              {CATEGORY_LABELS[item.category] || item.category}
+            </Text>
+          </View>
           {item.description ? (
             <Text style={styles.description} numberOfLines={2}>
               {item.description}
             </Text>
           ) : null}
+          {selected && (
+            <View style={styles.checkBadge}>
+              <AppIcon name="check" size={12} color="#fff" />
+            </View>
+          )}
         </TouchableOpacity>
       </Animated.View>
     );
@@ -84,8 +92,8 @@ export default function FoodGrid({ foods, selectedIndex, onSelect }: Props) {
       keyExtractor={(_, i) => String(i)}
       renderItem={renderItem}
       numColumns={2}
-      columnWrapperStyle={{ gap: 12 }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+      columnWrapperStyle={{ gap: spacing.sm }}
+      contentContainerStyle={{ padding: spacing.md, paddingBottom: 140 }}
     />
   );
 }
@@ -93,39 +101,65 @@ export default function FoodGrid({ foods, selectedIndex, onSelect }: Props) {
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: '#1e1a16',
-    borderWidth: 1.5,
-    borderColor: '#3a342c',
-    borderRadius: 14,
-    padding: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    position: 'relative',
   },
   cardSelected: {
-    borderColor: '#c4667a',
-    backgroundColor: '#3a2028',
+    borderColor: colors.accentRed,
+    backgroundColor: '#FBECEE',
   },
   emoji: {
     fontSize: 28,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   name: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#e8e0d4',
-    marginBottom: 2,
+    color: colors.textPrimary,
+    marginBottom: spacing.xxs,
   },
   nameSelected: {
-    color: '#c4667a',
+    color: colors.accentRed,
   },
-  category: {
-    fontSize: 11,
-    letterSpacing: 0.6,
-    color: '#5c5248',
-    marginBottom: 4,
+  categoryPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: 6,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    marginBottom: spacing.xxs,
+  },
+  categoryPillSelected: {
+    backgroundColor: colors.accentRed,
+  },
+  categoryText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  categoryTextSelected: {
+    color: '#fff',
   },
   description: {
     fontSize: 11,
-    color: '#9a8e7e',
-    lineHeight: 16,
+    color: colors.textSecondary,
+    lineHeight: 15,
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.accentRed,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

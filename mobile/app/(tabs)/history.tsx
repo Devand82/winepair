@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors, spacing, iconSize } from '../../theme';
+import { AppIcon } from '../../components/ui/AppIcon';
 import WineResult from '../../components/WineResult';
 import type { PairingRecord } from '../../types';
 
@@ -22,9 +24,21 @@ function formatDate(iso: string): string {
   });
 }
 
-function stars(score: number): string {
+function StarRating({ score }: { score: number }) {
   const n = Math.round(score / 2);
-  return '★'.repeat(n) + '☆'.repeat(5 - n);
+  return (
+    <View style={styles.starsRow}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <AppIcon
+          key={i}
+          name="star"
+          size={12}
+          color={i < n ? colors.accentYellow : colors.border}
+          strokeWidth={i < n ? 2.5 : 1.5}
+        />
+      ))}
+    </View>
+  );
 }
 
 export default function HistoryScreen() {
@@ -68,7 +82,9 @@ export default function HistoryScreen() {
   if (history.length === 0) {
     return (
       <View style={styles.emptyRoot}>
-        <Text style={styles.emptyEmoji}>📋</Text>
+        <View style={styles.emptyIconWrap}>
+          <AppIcon name="history" size={40} color={colors.border} />
+        </View>
         <Text style={styles.emptyTitle}>Nessun abbinamento ancora</Text>
         <Text style={styles.emptyDesc}>
           Gli abbinamenti appariranno qui dopo aver usato l'app
@@ -93,14 +109,17 @@ export default function HistoryScreen() {
             onLongPress={() => confirmDelete(item.id)}
             style={styles.card}
           >
-            <Text style={styles.cardTitle} numberOfLines={1}>
-              {item.result.wine_name}
-            </Text>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardBadge}>
+                <AppIcon name="wine" size={14} color={colors.accentRed} />
+              </View>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {item.result.wine_name}
+              </Text>
+            </View>
             <Text style={styles.cardFood}>Per: {item.foodName}</Text>
             <View style={styles.cardFooter}>
-              <Text style={styles.cardStars}>
-                {stars(item.score)}
-              </Text>
+              <StarRating score={item.score} />
               <Text style={styles.cardDate}>
                 {formatDate(item.date)}
               </Text>
@@ -113,11 +132,13 @@ export default function HistoryScreen() {
         animationType="slide"
         visible={showModal}
         onRequestClose={() => setShowModal(false)}
+        presentationStyle="pageSheet"
       >
         <SafeAreaView style={styles.modalRoot}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowModal(false)} activeOpacity={0.75}>
-              <Text style={styles.modalClose}>← Chiudi</Text>
+            <TouchableOpacity onPress={() => setShowModal(false)} activeOpacity={0.75} style={styles.backRow}>
+              <AppIcon name="chevron-left" size={iconSize.sm} color={colors.accentRed} />
+              <Text style={styles.modalClose}>Chiudi</Text>
             </TouchableOpacity>
           </View>
           {selectedRecord && (
@@ -139,73 +160,102 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#13100d' },
+  root: { flex: 1, backgroundColor: colors.background },
   emptyRoot: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
-    backgroundColor: '#13100d',
+    backgroundColor: colors.background,
   },
-  emptyEmoji: { fontSize: 52, marginBottom: 16 },
+  emptyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
   emptyTitle: {
-    fontFamily: 'serif',
+    fontFamily: 'PlayfairDisplay_700Bold',
     fontSize: 20,
-    color: '#e8e0d4',
-    fontWeight: '700',
-    marginBottom: 8,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   emptyDesc: {
     fontSize: 14,
-    color: '#9a8e7e',
+    color: colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 20,
   },
   list: {
-    padding: 16,
-    gap: 12,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   card: {
-    backgroundColor: '#191512',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#3a342c',
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: spacing.md,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  cardBadge: {
+    width: 28,
+    height: 28,
     borderRadius: 14,
-    padding: 16,
+    backgroundColor: colors.dangerSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardTitle: {
     fontWeight: '700',
     fontSize: 15,
-    color: '#e8e0d4',
+    color: colors.textPrimary,
+    flex: 1,
   },
   cardFood: {
     fontSize: 13,
-    color: '#9a8e7e',
-    marginTop: 4,
+    color: colors.textSecondary,
+    marginTop: spacing.xxs,
+    marginLeft: 36,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 6,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    marginLeft: 36,
   },
-  cardStars: {
-    color: '#e8a832',
-    letterSpacing: 2,
-    fontSize: 12,
+  starsRow: {
+    flexDirection: 'row',
+    gap: 2,
   },
   cardDate: {
     fontSize: 12,
-    color: '#5c5248',
+    color: colors.textSecondary,
   },
-  modalRoot: { flex: 1, backgroundColor: '#13100d' },
+  modalRoot: { flex: 1, backgroundColor: colors.background },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2c271f',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
   },
   modalClose: {
-    color: '#c4667a',
+    color: colors.accentRed,
     fontSize: 15,
     fontWeight: '600',
   },

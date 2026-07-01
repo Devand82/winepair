@@ -11,6 +11,8 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
+import { colors, spacing, borderRadius, iconSize } from '../../theme';
+import { AppIcon } from '../../components/ui/AppIcon';
 import { useSettings } from '../../hooks/useSettings';
 import { api } from '../../services/api';
 import type { ModelInfo } from '../../types';
@@ -61,104 +63,115 @@ export default function SettingsScreen() {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-    <ScrollView style={styles.root}>
-      <Text style={styles.sectionLabel}>SERVER BACKEND</Text>
-      <View style={styles.block}>
-        <View style={styles.blockInner}>
-          <Text style={styles.fieldLabel}>URL API</Text>
-          <TextInput
-            style={[styles.input, urlFocused && styles.inputFocused]}
-            value={apiUrl}
-            onChangeText={setApiUrl}
-            onFocus={() => setUrlFocused(true)}
-            onBlur={() => setUrlFocused(false)}
-            placeholder="http://YOUR_IP:8000"
-            placeholderTextColor="#5c5248"
-            autoCapitalize="none"
-            keyboardType="url"
-          />
-        </View>
-        <TouchableOpacity
-          style={styles.testBtn}
-          onPress={handleTestConnection}
-          disabled={testStatus === 'testing'}
-          activeOpacity={0.75}
-        >
-          {testStatus === 'testing' ? (
-            <ActivityIndicator color="#c4667a" size="small" />
-          ) : testStatus === 'ok' ? (
-            <Text style={styles.testOk}>✓ Connesso</Text>
-          ) : testStatus === 'fail' ? (
-            <Text style={styles.testFail}>✗ Server non raggiungibile</Text>
-          ) : (
-            <Text style={styles.testIdle}>Testa connessione</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.divider} />
-
-      <Text style={styles.sectionLabel}>MODELLO AI</Text>
-      <View style={styles.block}>
-        {modelsLoading ? (
-          <View style={styles.loadingModels}>
-            <ActivityIndicator color="#c4667a" size="small" />
-            <Text style={styles.loadingModelsText}>Caricamento modelli...</Text>
-          </View>
-        ) : models.length === 0 ? (
-          <Text style={styles.noModels}>Nessun modello disponibile</Text>
-        ) : models.map((m, i) => {
-          const selected = model === m.id;
-          return (
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>SERVER BACKEND</Text>
+          <View style={styles.card}>
+            <Text style={styles.fieldLabel}>URL API</Text>
+            <TextInput
+              style={[styles.input, urlFocused && styles.inputFocused]}
+              value={apiUrl}
+              onChangeText={setApiUrl}
+              onFocus={() => setUrlFocused(true)}
+              onBlur={() => setUrlFocused(false)}
+              placeholder="http://YOUR_IP:8000"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
             <TouchableOpacity
-              key={m.id}
+              style={styles.testBtn}
+              onPress={handleTestConnection}
+              disabled={testStatus === 'testing'}
               activeOpacity={0.75}
-              onPress={() => setModel(m.id)}
             >
-              <View style={styles.modelRow}>
-                <View
-                  style={[
-                    styles.radio,
-                    selected && styles.radioSelected,
-                  ]}
-                >
-                  {selected && <View style={styles.radioInner} />}
-                </View>
-                <View style={styles.modelInfo}>
-                  <View style={styles.modelLabelRow}>
-                    <Text style={styles.modelLabel}>{m.name}</Text>
-                    {m.supports_vision ? (
-                      <Text style={styles.visionBadge}>📷</Text>
-                    ) : (
-                      <Text style={styles.noVisionBadge}>📝</Text>
-                    )}
+              {testStatus === 'testing' ? (
+                <ActivityIndicator color={colors.accentRed} size="small" />
+              ) : testStatus === 'ok' ? (
+                <View style={styles.testStatusRow}>
+                  <View style={styles.testBadgeOk}>
+                    <AppIcon name="check" size={12} color={colors.successText} />
                   </View>
-                  <Text style={styles.modelDesc}>{m.description}</Text>
+                  <Text style={styles.testTextOk}>Connesso</Text>
                 </View>
-              </View>
-              {i < models.length - 1 && <View style={styles.rowDivider} />}
+              ) : testStatus === 'fail' ? (
+                <View style={styles.testStatusRow}>
+                  <View style={styles.testBadgeFail}>
+                    <AppIcon name="alert" size={12} color={colors.dangerText} />
+                  </View>
+                  <Text style={styles.testTextFail}>Server non raggiungibile</Text>
+                </View>
+              ) : (
+                <Text style={styles.testTextIdle}>Testa connessione</Text>
+              )}
             </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <Text style={styles.sectionLabel}>INFORMAZIONI</Text>
-      <View style={styles.block}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoKey}>Versione</Text>
-          <Text style={styles.infoValue}>1.0.0</Text>
+          </View>
         </View>
-        <View style={styles.rowDivider} />
-        <TouchableOpacity
-          style={styles.infoRow}
-          onPress={() => Linking.openURL('https://openrouter.ai')}
-          activeOpacity={0.75}
-        >
-          <Text style={styles.linkText}>OpenRouter</Text>
-          <Text style={styles.linkText}>↗</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>MODELLO AI</Text>
+          <View style={styles.card}>
+            {modelsLoading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color={colors.accentRed} size="small" />
+                <Text style={styles.loadingText}>Caricamento modelli…</Text>
+              </View>
+            ) : models.length === 0 ? (
+              <Text style={styles.noModels}>Nessun modello disponibile</Text>
+            ) : models.map((m, i) => {
+              const selected = model === m.id;
+              return (
+                <TouchableOpacity
+                  key={m.id}
+                  activeOpacity={0.75}
+                  onPress={() => setModel(m.id)}
+                >
+                  <View style={styles.modelRow}>
+                    <View style={[styles.radio, selected && styles.radioSelected]}>
+                      {selected && (
+                        <AppIcon name="circle-check" size={12} color={colors.accentRed} />
+                      )}
+                    </View>
+                    <View style={styles.modelInfo}>
+                      <View style={styles.modelLabelRow}>
+                        <Text style={[styles.modelLabel, selected && styles.modelLabelSelected]}>
+                          {m.name}
+                        </Text>
+                        {m.supports_vision ? (
+                          <View style={styles.visionBadge}>
+                            <AppIcon name="image" size={10} color={colors.textSecondary} />
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text style={styles.modelDesc}>{m.description}</Text>
+                    </View>
+                  </View>
+                  {i < models.length - 1 && <View style={styles.rowDivider} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>INFORMAZIONI</Text>
+          <View style={styles.card}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoKey}>Versione</Text>
+              <Text style={styles.infoValue}>1.0.0</Text>
+            </View>
+            <View style={styles.rowDivider} />
+            <TouchableOpacity
+              style={styles.infoRow}
+              onPress={() => Linking.openURL('https://openrouter.ai')}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.linkText}>OpenRouter</Text>
+              <AppIcon name="share" size={14} color={colors.accentRed} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -166,164 +179,183 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#13100d',
+    backgroundColor: colors.background,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: spacing.xxl,
+  },
+  section: {
+    marginTop: spacing.xl,
+    paddingHorizontal: spacing.md,
   },
   sectionLabel: {
     textTransform: 'uppercase',
     fontSize: 11,
-    color: '#5c5248',
+    color: colors.textSecondary,
     fontWeight: '600',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    marginTop: 24,
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xxs,
   },
-  block: {
-    backgroundColor: '#191512',
-    borderRadius: 14,
-    marginHorizontal: 16,
+  card: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
   },
-  blockInner: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 4,
-  },
   fieldLabel: {
-    fontSize: 15,
-    color: '#e8e0d4',
+    fontSize: 14,
+    color: colors.textPrimary,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
   },
   input: {
-    backgroundColor: '#1e1a16',
+    backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
-    borderColor: '#3a342c',
-    borderRadius: 12,
-    padding: 12,
-    color: '#e8e0d4',
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm + 2,
+    marginHorizontal: spacing.md,
+    color: colors.textPrimary,
     fontSize: 14,
   },
   inputFocused: {
-    borderColor: '#c4667a',
+    borderColor: colors.accentRed,
   },
   testBtn: {
-    backgroundColor: '#28231d',
+    marginHorizontal: spacing.md,
+    marginVertical: spacing.md,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: '#3a342c',
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderColor: colors.border,
+    paddingVertical: spacing.sm + 2,
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 14,
-    marginTop: 10,
   },
-  testIdle: {
-    color: '#9a8e7e',
+  testStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  testBadgeOk: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.successSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  testBadgeFail: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.dangerSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  testTextOk: {
+    color: colors.successText,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  testTextFail: {
+    color: colors.dangerText,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  testTextIdle: {
+    color: colors.textSecondary,
     fontSize: 14,
   },
-  testOk: {
-    color: '#9a8e7e',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  testFail: {
-    color: '#c4667a',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#2c271f',
-    marginVertical: 4,
-  },
-  loadingModels: {
+  loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 20,
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
   },
-  loadingModelsText: {
-    color: '#9a8e7e',
+  loadingText: {
+    color: colors.textSecondary,
     fontSize: 14,
   },
   noModels: {
-    color: '#5c5248',
+    color: colors.textSecondary,
     fontSize: 14,
     textAlign: 'center',
-    paddingVertical: 20,
-  },
-  modelLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  visionBadge: {
-    fontSize: 14,
-  },
-  noVisionBadge: {
-    fontSize: 14,
-    opacity: 0.4,
+    paddingVertical: spacing.lg,
   },
   modelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   radio: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#3a342c',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioSelected: {
-    borderColor: '#c4667a',
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#c4667a',
+    borderColor: colors.accentRed,
   },
   modelInfo: {
     flex: 1,
   },
+  modelLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
   modelLabel: {
     fontSize: 15,
-    color: '#e8e0d4',
-    fontWeight: '600',
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  modelLabelSelected: {
+    fontWeight: '700',
+    color: colors.accentRed,
+  },
+  visionBadge: {
+    opacity: 0.6,
   },
   modelDesc: {
     fontSize: 12,
-    color: '#9a8e7e',
-    marginTop: 2,
+    color: colors.textSecondary,
+    marginTop: spacing.xxs,
+    lineHeight: 16,
   },
   rowDivider: {
-    height: 1,
-    backgroundColor: '#2c271f',
-    marginLeft: 48,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginLeft: spacing.lg + spacing.sm + 20,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   infoKey: {
-    color: '#e8e0d4',
-    fontSize: 15,
+    color: colors.textPrimary,
+    fontSize: 14,
   },
   infoValue: {
-    color: '#9a8e7e',
-    fontSize: 15,
+    color: colors.textSecondary,
+    fontSize: 14,
   },
   linkText: {
-    color: '#c4667a',
-    fontSize: 15,
+    color: colors.accentRed,
+    fontSize: 14,
   },
 });
