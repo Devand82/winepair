@@ -38,6 +38,14 @@ export interface PairingResult {
   alternative_note?: string | null;
 }
 
+export interface ModelInfo {
+  id: string;
+  name: string;
+  supports_vision: boolean;
+  provider: string;
+  description: string;
+}
+
 export interface PairingRecord {
   id: string;
   date: string;

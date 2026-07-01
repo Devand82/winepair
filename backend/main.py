@@ -16,8 +16,17 @@ app.add_middleware(
 )
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "openai/gpt-4o-mini")
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "openrouter/free")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+AVAILABLE_MODELS = [
+    {"id": "openrouter/free", "name": "Free Router", "supports_vision": True, "provider": "OpenRouter", "description": "Seleziona automaticamente il miglior modello free. Supporta immagini e JSON strutturato."},
+    {"id": "google/gemma-4-31b-it:free", "name": "Gemma 4 31B (Free)", "supports_vision": True, "provider": "Google", "description": "Modello free Google. Supporta immagini (rate limitato)."},
+    {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini", "supports_vision": True, "provider": "OpenAI", "description": "Veloce, economico. Richiede credito OpenRouter."},
+    {"id": "openai/gpt-4o", "name": "GPT-4o", "supports_vision": True, "provider": "OpenAI", "description": "Massima qualità. Richiede credito OpenRouter."},
+    {"id": "google/gemini-2.0-flash-001", "name": "Gemini 2.0 Flash", "supports_vision": True, "provider": "Google", "description": "Veloce, basso costo. Richiede credito OpenRouter."},
+    {"id": "anthropic/claude-3.5-haiku", "name": "Claude 3.5 Haiku", "supports_vision": False, "provider": "Anthropic", "description": "Preciso, solo testo. Richiede credito OpenRouter."},
+]
 
 
 class Food(BaseModel):
@@ -54,19 +63,21 @@ class PairRequest(BaseModel):
 
 async def call_openrouter(messages, model):
     model = model or DEFAULT_MODEL
-    async with httpx.AsyncClient(timeout=60) as client:
+    body = {
+        "model": model,
+        "messages": messages,
+        "temperature": 0.2,
+    }
+    if model != "openrouter/free":
+        body["response_format"] = {"type": "json_object"}
+    async with httpx.AsyncClient(timeout=120) as client:
         resp = await client.post(
             OPENROUTER_URL,
             headers={
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": model,
-                "messages": messages,
-                "response_format": {"type": "json_object"},
-                "temperature": 0.2,
-            },
+            json=body,
         )
         if resp.status_code == 402:
             raise HTTPException(402, "Credito OpenRouter insufficiente. Ricarica su openrouter.ai")
@@ -78,9 +89,26 @@ async def call_openrouter(messages, model):
         return resp.json()
 
 
+def parse_json_response(raw: dict, endpoint: str):
+    content = raw["choices"][0]["message"]["content"]
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        raise HTTPException(422,
+            f"Risposta del modello non valida. Il modello non ha restituito JSON valido. "
+            f"Risposta grezza: {content[:500]}"
+        )
+    return data
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "1.0.0"}
+
+
+@app.get("/api/models")
+async def get_models():
+    return {"default": DEFAULT_MODEL, "models": AVAILABLE_MODELS}
 
 
 @app.post("/api/extract-text")
@@ -96,8 +124,7 @@ async def extract_text(req: ExtractTextRequest):
     raw = await call_openrouter(
         [{"role": "user", "content": prompt}], req.model
     )
-    content = raw["choices"][0]["message"]["content"]
-    data = json.loads(content)
+    data = parse_json_response(raw, "extract-text")
     if not data.get("foods"):
         raise HTTPException(422, "Nessun piatto trovato nel menù")
     if not data.get("wines"):
@@ -139,8 +166,7 @@ async def extract_image(
     ]
 
     raw = await call_openrouter(messages, model)
-    content = raw["choices"][0]["message"]["content"]
-    data = json.loads(content)
+    data = parse_json_response(raw, "extract-image")
     if not data.get("foods"):
         raise HTTPException(422, "Nessun piatto trovato nell'immagine")
     if not data.get("wines"):
@@ -171,5 +197,4 @@ async def pair_wine(req: PairRequest):
     raw = await call_openrouter(
         [{"role": "user", "content": prompt}], req.model
     )
-    content = raw["choices"][0]["message"]["content"]
-    return json.loads(content)
+    return parse_json_response(raw, "pair")

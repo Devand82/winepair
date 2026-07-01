@@ -63,6 +63,8 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const [loadingText, setLoadingText] = useState(LOADING_TEXTS[0]);
+
+  const visionUnsupported = model === 'anthropic/claude-3.5-haiku';
   const loadingInterval = useRef<ReturnType<typeof setInterval>>();
 
   useEffect(() => {
@@ -128,11 +130,12 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
     try {
       let data: MenuData;
       if (imageUri) {
+        const imageModel = visionUnsupported ? 'openrouter/free' : model;
         data = await api.extractImage(
           apiUrl,
           imageUri,
           'image/jpeg',
-          model,
+          imageModel,
           menuText || undefined,
         );
       } else {
@@ -195,6 +198,11 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
         {imageUri && (
           <View style={styles.previewSection}>
             <Image source={{ uri: imageUri }} style={styles.preview} />
+            {visionUnsupported && (
+              <Text style={styles.visionNote}>
+                Il modello selezionato non supporta le immagini. Verrà usato openrouter/free.
+              </Text>
+            )}
             <TouchableOpacity
               style={styles.removeBtn}
               onPress={() => setImageUri(null)}
@@ -325,6 +333,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     resizeMode: 'contain',
     backgroundColor: '#1e1a16',
+  },
+  visionNote: {
+    color: '#9a8e7e',
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 4,
   },
   removeBtn: {
     backgroundColor: '#28231d',

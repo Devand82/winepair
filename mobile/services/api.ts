@@ -1,4 +1,9 @@
-import type { Food, Wine, MenuData, PairingResult } from '../types';
+import type { Food, Wine, MenuData, PairingResult, ModelInfo } from '../types';
+
+interface ModelsResponse {
+  default: string;
+  models: ModelInfo[];
+}
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -11,6 +16,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export const api = {
   health: (apiUrl: string) =>
     fetch(`${apiUrl}/health`).then(handleResponse),
+
+  getModels: (apiUrl: string): Promise<ModelsResponse> =>
+    fetch(`${apiUrl}/api/models`).then(handleResponse<ModelsResponse>),
 
   extractText: (apiUrl: string, menuText: string, model?: string) =>
     fetch(`${apiUrl}/api/extract-text`, {

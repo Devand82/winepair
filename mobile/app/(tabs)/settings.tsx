@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,12 @@ import {
 } from 'react-native';
 import { useSettings } from '../../hooks/useSettings';
 import { api } from '../../services/api';
+import type { ModelInfo } from '../../types';
 
-const MODELS = [
-  { value: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B (Free)', desc: 'Gratuito · Vision ✗ · Con chiave OpenRouter' },
-  { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', desc: 'Veloce · Economico · Vision ✓' },
-  { value: 'openai/gpt-4o', label: 'GPT-4o', desc: 'Migliore qualità · Vision ✓' },
-  { value: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash', desc: 'Veloce · Low cost · Vision ✓' },
-  { value: 'anthropic/claude-3.5-haiku', label: 'Claude 3.5 Haiku', desc: 'Preciso · Solo testo' },
+const FALLBACK_MODELS: ModelInfo[] = [
+  { id: 'openrouter/free', name: 'Free Router', supports_vision: true, provider: 'OpenRouter', description: 'Seleziona automaticamente il miglior modello free.' },
+  { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', supports_vision: true, provider: 'OpenAI', description: 'Veloce, economico. Richiede credito.' },
+  { id: 'openai/gpt-4o', name: 'GPT-4o', supports_vision: true, provider: 'OpenAI', description: 'Massima qualità. Richiede credito.' },
 ];
 
 type TestStatus = 'idle' | 'testing' | 'ok' | 'fail';
@@ -28,12 +27,27 @@ export default function SettingsScreen() {
   const { apiUrl, setApiUrl, model, setModel } = useSettings();
   const [urlFocused, setUrlFocused] = useState(false);
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
+  const [models, setModels] = useState<ModelInfo[]>(FALLBACK_MODELS);
+  const [modelsLoading, setModelsLoading] = useState(true);
   const testTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api.getModels(apiUrl);
+        if (data.models?.length) setModels(data.models);
+      } catch {
+        // fallback already set
+      } finally {
+        setModelsLoading(false);
+      }
+    })();
+  }, [apiUrl]);
 
   const handleTestConnection = useCallback(async () => {
     setTestStatus('testing');
     try {
-      const data: any = await api.health(apiUrl);
+      await api.health(apiUrl);
       setTestStatus('ok');
       testTimeout.current = setTimeout(() => setTestStatus('idle'), 4000);
     } catch {
@@ -86,13 +100,20 @@ export default function SettingsScreen() {
 
       <Text style={styles.sectionLabel}>MODELLO AI</Text>
       <View style={styles.block}>
-        {MODELS.map((m, i) => {
-          const selected = model === m.value;
+        {modelsLoading ? (
+          <View style={styles.loadingModels}>
+            <ActivityIndicator color="#c4667a" size="small" />
+            <Text style={styles.loadingModelsText}>Caricamento modelli...</Text>
+          </View>
+        ) : models.length === 0 ? (
+          <Text style={styles.noModels}>Nessun modello disponibile</Text>
+        ) : models.map((m, i) => {
+          const selected = model === m.id;
           return (
             <TouchableOpacity
-              key={m.value}
+              key={m.id}
               activeOpacity={0.75}
-              onPress={() => setModel(m.value)}
+              onPress={() => setModel(m.id)}
             >
               <View style={styles.modelRow}>
                 <View
@@ -104,11 +125,18 @@ export default function SettingsScreen() {
                   {selected && <View style={styles.radioInner} />}
                 </View>
                 <View style={styles.modelInfo}>
-                  <Text style={styles.modelLabel}>{m.label}</Text>
-                  <Text style={styles.modelDesc}>{m.desc}</Text>
+                  <View style={styles.modelLabelRow}>
+                    <Text style={styles.modelLabel}>{m.name}</Text>
+                    {m.supports_vision ? (
+                      <Text style={styles.visionBadge}>📷</Text>
+                    ) : (
+                      <Text style={styles.noVisionBadge}>📝</Text>
+                    )}
+                  </View>
+                  <Text style={styles.modelDesc}>{m.description}</Text>
                 </View>
               </View>
-              {i < MODELS.length - 1 && <View style={styles.rowDivider} />}
+              {i < models.length - 1 && <View style={styles.rowDivider} />}
             </TouchableOpacity>
           );
         })}
@@ -207,6 +235,35 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#2c271f',
     marginVertical: 4,
+  },
+  loadingModels: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 20,
+  },
+  loadingModelsText: {
+    color: '#9a8e7e',
+    fontSize: 14,
+  },
+  noModels: {
+    color: '#5c5248',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  modelLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  visionBadge: {
+    fontSize: 14,
+  },
+  noVisionBadge: {
+    fontSize: 14,
+    opacity: 0.4,
   },
   modelRow: {
     flexDirection: 'row',

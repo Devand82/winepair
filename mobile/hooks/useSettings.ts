@@ -8,7 +8,7 @@ const KEYS = {
 
 const DEFAULTS = {
   apiUrl: 'http://178.105.49.3:8000',
-  model: 'google/gemma-4-31b-it:free',
+  model: 'openrouter/free',
 } as const;
 
 export function useSettings() {
