@@ -21,6 +21,8 @@ const FALLBACK_MODELS: ModelInfo[] = [
   { id: 'openrouter/free', name: 'Free Router', supports_vision: true, provider: 'OpenRouter', description: 'Seleziona automaticamente il miglior modello free.' },
   { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', supports_vision: true, provider: 'OpenAI', description: 'Veloce, economico. Richiede credito.' },
   { id: 'openai/gpt-4o', name: 'GPT-4o', supports_vision: true, provider: 'OpenAI', description: 'Massima qualità. Richiede credito.' },
+  { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', supports_vision: true, provider: 'Google', description: 'Veloce, basso costo. Richiede credito.' },
+  { id: 'anthropic/claude-3.5-haiku', name: 'Claude 3.5 Haiku', supports_vision: false, provider: 'Anthropic', description: 'Preciso, solo testo. Richiede credito.' },
 ];
 
 type TestStatus = 'idle' | 'testing' | 'ok' | 'fail';

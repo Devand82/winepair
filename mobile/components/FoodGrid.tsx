@@ -2,7 +2,6 @@ import React, { useMemo, useRef } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   Animated,
   StyleSheet,
@@ -22,10 +21,12 @@ const CATEGORY_LABELS: Record<string, string> = {
 interface Props {
   foods: Food[];
   selectedIndex: number | null;
+  selectedIndexes?: number[];
   onSelect: (index: number) => void;
+  multiSelect?: boolean;
 }
 
-export default function FoodGrid({ foods, selectedIndex, onSelect }: Props) {
+export default function FoodGrid({ foods, selectedIndex, selectedIndexes, onSelect, multiSelect }: Props) {
   const scaleValues = useRef<Animated.Value[]>([]);
 
   const scales = useMemo(() => {
@@ -35,70 +36,85 @@ export default function FoodGrid({ foods, selectedIndex, onSelect }: Props) {
     return scaleValues.current.slice(0, foods.length);
   }, [foods.length]);
 
-  const renderItem = ({ item, index }: { item: Food; index: number }) => {
-    const selected = selectedIndex === index;
-    const scale = scales[index];
-
-    const handlePress = () => {
-      Animated.sequence([
-        Animated.spring(scale, {
-          toValue: 1.03,
-          useNativeDriver: true,
-          speed: 30,
-        }),
-        Animated.spring(scale, {
-          toValue: 1,
-          useNativeDriver: true,
-          speed: 30,
-        }),
-      ]).start();
-      onSelect(index);
-    };
-
-    return (
-      <Animated.View style={{ flex: 1, transform: [{ scale }] }}>
-        <TouchableOpacity
-          activeOpacity={0.75}
-          onPress={handlePress}
-          style={[styles.card, selected && styles.cardSelected]}
-        >
-          <Text style={styles.emoji}>{item.emoji}</Text>
-          <Text style={[styles.name, selected && styles.nameSelected]}>
-            {item.name}
-          </Text>
-          <View style={[styles.categoryPill, selected && styles.categoryPillSelected]}>
-            <Text style={[styles.categoryText, selected && styles.categoryTextSelected]}>
-              {CATEGORY_LABELS[item.category] || item.category}
-            </Text>
-          </View>
-          {item.description ? (
-            <Text style={styles.description} numberOfLines={2}>
-              {item.description}
-            </Text>
-          ) : null}
-          {selected && (
-            <View style={styles.checkBadge}>
-              <AppIcon name="check" size={12} color="#fff" />
-            </View>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
-    );
+  const isSelected = (index: number) => {
+    if (multiSelect) {
+      return selectedIndexes?.includes(index) ?? false;
+    }
+    return selectedIndex === index;
   };
 
   return (
-    <FlatList
-      data={foods}
-      keyExtractor={(_, i) => String(i)}
-      renderItem={renderItem}
-      numColumns={2}
-      columnWrapperStyle={{ gap: spacing.sm }}
-      contentContainerStyle={{ padding: spacing.md, paddingBottom: 140 }}
-    />
+    <View style={styles.grid}>
+      {foods.map((item, index) => {
+        const selected = isSelected(index);
+        const scale = scales[index];
+
+        const handlePress = () => {
+          Animated.sequence([
+            Animated.spring(scale, {
+              toValue: 1.03,
+              useNativeDriver: true,
+              speed: 30,
+            }),
+            Animated.spring(scale, {
+              toValue: 1,
+              useNativeDriver: true,
+              speed: 30,
+            }),
+          ]).start();
+          onSelect(index);
+        };
+
+        return (
+          <View key={index} style={styles.cell}>
+            <Animated.View style={{ flex: 1, transform: [{ scale }] }}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={handlePress}
+                style={[styles.card, selected && styles.cardSelected]}
+              >
+                <Text style={styles.emoji}>{item.emoji}</Text>
+                <Text style={[styles.name, selected && styles.nameSelected]}>
+                  {item.name}
+                </Text>
+                <View style={[styles.categoryPill, selected && styles.categoryPillSelected]}>
+                  <Text style={[styles.categoryText, selected && styles.categoryTextSelected]}>
+                    {CATEGORY_LABELS[item.category] || item.category}
+                  </Text>
+                </View>
+                {item.description ? (
+                  <Text style={styles.description} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+                ) : null}
+                {item.menu_price ? (
+                  <Text style={styles.price}>{item.menu_price}</Text>
+                ) : null}
+                {selected && (
+                  <View style={styles.checkBadge}>
+                    <AppIcon name="check" size={12} color="#fff" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        );
+      })}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  cell: {
+    width: '48%',
+    marginBottom: spacing.sm,
+  },
   card: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -150,6 +166,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
     lineHeight: 15,
+  },
+  price: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accentYellow,
+    marginTop: spacing.xxs,
   },
   checkBadge: {
     position: 'absolute',

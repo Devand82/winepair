@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,20 @@ import {
   TouchableOpacity,
   Animated,
   Share,
+  Alert,
+  ActivityIndicator,
+  Platform,
   StyleSheet,
 } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import { captureRef } from 'react-native-view-shot';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, borderRadius, iconSize } from '../theme';
 import { AppIcon } from './ui/AppIcon';
 import { getWineAccent, getWineSoftBg } from '../theme/helpers';
-import type { PairingResult, Wine } from '../types';
+import { cellarStorage } from '../services/cellar';
+import { api } from '../services/api';
+import type { PairingResult, Wine, CellarWine } from '../types';
 
 interface Props {
   result: PairingResult;
@@ -19,6 +27,8 @@ interface Props {
   foodName: string;
   onBack: () => void;
   onNewMenu: () => void;
+  tastingNote?: string;
+  personalRating?: number;
 }
 
 function StarRating({ score }: { score?: number }) {
@@ -44,14 +54,49 @@ export default function WineResult({
   foodName,
   onBack,
   onNewMenu,
+  tastingNote,
+  personalRating,
 }: Props) {
   const slideY = useRef(new Animated.Value(-30)).current;
   const wineAccent = getWineAccent(result.wine_type);
   const wineSoftBg = getWineSoftBg(result.wine_type);
+  const contentRef = useRef<View>(null);
   const altWine =
     result.alternative_wine_index != null
       ? wines[result.alternative_wine_index]
       : null;
+
+  const [marketPrice, setMarketPrice] = useState<string | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const lookupPrice = async () => {
+      if (!result.wine_name) return;
+      setPriceLoading(true);
+      try {
+        const storedUrl = await AsyncStorage.getItem('@winepair/api_url');
+        const storedModel = await AsyncStorage.getItem('@winepair/model');
+        const apiUrl = storedUrl || 'http://178.105.49.3:8000';
+        const model = storedModel || 'openrouter/free';
+        const data = await api.lookupPrice(apiUrl, {
+          wine_name: result.wine_name,
+          vintage: result.vintage || undefined,
+          region: result.region,
+          wine_type: result.wine_type,
+        }, model);
+        if (!cancelled && data.market_price) {
+          setMarketPrice(data.market_price);
+        }
+      } catch {
+        // fallback: keep the original avg_market_price from pairing
+      } finally {
+        if (!cancelled) setPriceLoading(false);
+      }
+    };
+    lookupPrice();
+    return () => { cancelled = true; };
+  }, [result.wine_name, result.vintage, result.region, result.wine_type]);
 
   useEffect(() => {
     Animated.spring(slideY, {
@@ -61,6 +106,33 @@ export default function WineResult({
       speed: 14,
     }).start();
   }, [slideY]);
+
+  const shareAsImage = async () => {
+    try {
+      if (!contentRef.current) {
+        Alert.alert('Errore', 'Impossibile catturare l\'immagine.');
+        return;
+      }
+      const uri = await captureRef(contentRef, { format: 'png', quality: 0.9 });
+      if (Platform.OS === 'ios') {
+        await Share.share({ url: uri });
+      } else {
+        const isSharingAvailable = await Sharing.isAvailableAsync();
+        if (isSharingAvailable) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'image/png',
+            dialogTitle: 'Condividi abbinamento vino',
+          });
+        } else {
+          Alert.alert('Non disponibile', 'La condivisione immagini non è supportata su questo dispositivo.');
+        }
+      }
+    } catch (e: any) {
+      if (e?.message !== 'User did not share') {
+        Alert.alert('Errore', 'Impossibile condividere l\'immagine.');
+      }
+    }
+  };
 
   const shareResult = () => {
     const starsDisplay = '★'.repeat(Math.round((result.food_match_score || 0) / 2)) +
@@ -82,23 +154,46 @@ export default function WineResult({
     Share.share({ title: 'Il mio abbinamento vino', message });
   };
 
+  const addToCellar = async () => {
+    const cellarWine: CellarWine = {
+      id: Date.now().toString(),
+      name: result.wine_name,
+      type: result.wine_type as CellarWine['type'],
+      region: result.region,
+      vintage: result.vintage,
+      price: result.menu_price,
+      bottleCount: 1,
+      addedAt: new Date().toISOString(),
+    };
+    await cellarStorage.add(cellarWine);
+    Alert.alert('Aggiunto alla cantina', `${result.wine_name} è stato salvato.`);
+  };
+
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={styles.content}
-    >
+    <View style={styles.root}>
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <AppIcon name="utensils" size={14} color={colors.textSecondary} />
-          <Text style={styles.headerLabel}>{foodName}</Text>
+          <Text style={styles.headerLabel} numberOfLines={1} ellipsizeMode="tail">{foodName}</Text>
         </View>
-        <TouchableOpacity style={styles.shareBtn} onPress={shareResult} activeOpacity={0.75}>
-          <AppIcon name="share" size={14} color={colors.accentRed} />
-          <Text style={styles.shareBtnText}>Condividi</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.shareBtn} onPress={shareAsImage} activeOpacity={0.75}>
+            <AppIcon name="image" size={14} color={colors.accentRed} />
+            <Text style={styles.shareBtnText}>Immagine</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shareBtn} onPress={shareResult} activeOpacity={0.75}>
+            <AppIcon name="share" size={14} color={colors.accentRed} />
+            <Text style={styles.shareBtnText}>Testo</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+      <ScrollView
+        style={styles.scrollRoot}
+        contentContainerStyle={styles.content}
+      >
+        <View ref={contentRef}>
 
-      <Animated.View
+        <Animated.View
         style={[styles.wineCard, { transform: [{ translateY: slideY }] }]}
       >
         <View style={[styles.wineIconWrap, { backgroundColor: wineSoftBg }]}>
@@ -135,10 +230,14 @@ export default function WineResult({
               <Text style={styles.priceValue}>{result.menu_price}</Text>
             </View>
           ) : null}
-          {result.avg_market_price ? (
+          {(marketPrice || result.avg_market_price) ? (
             <View style={styles.priceBlock}>
               <Text style={styles.priceLabel}>Mercato</Text>
-              <Text style={styles.marketValue}>{result.avg_market_price}</Text>
+              {priceLoading ? (
+                <ActivityIndicator size="small" color={colors.textSecondary} />
+              ) : (
+                <Text style={styles.marketValue}>{marketPrice || result.avg_market_price}</Text>
+              )}
             </View>
           ) : null}
           {result.food_match_score ? (
@@ -149,6 +248,11 @@ export default function WineResult({
           ) : null}
         </View>
       </Animated.View>
+
+      <TouchableOpacity style={styles.cellarBtn} onPress={addToCellar} activeOpacity={0.75}>
+        <AppIcon name="plus" size={14} color={colors.accentRed} />
+        <Text style={styles.cellarBtnText}>Aggiungi alla cantina</Text>
+      </TouchableOpacity>
 
       <View style={styles.detailGrid}>
         <View style={styles.detailRow}>
@@ -193,6 +297,24 @@ export default function WineResult({
         </View>
       ) : null}
 
+      {(tastingNote || personalRating) ? (
+        <View style={styles.noteCard}>
+          <View style={styles.noteHeader}>
+            <AppIcon name="bookmark" size={14} color={colors.accentRed} />
+            <Text style={styles.noteLabel}>La mia degustazione</Text>
+          </View>
+          {personalRating ? (
+            <View style={styles.noteRatingRow}>
+              <Text style={styles.noteRatingLabel}>Il mio voto:</Text>
+              <StarRating score={personalRating} />
+            </View>
+          ) : null}
+          {tastingNote ? (
+            <Text style={styles.noteText}>{tastingNote}</Text>
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={styles.actions}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.75}>
           <View style={styles.backBtnInner}>
@@ -207,7 +329,9 @@ export default function WineResult({
           </View>
         </TouchableOpacity>
       </View>
+      </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -251,10 +375,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xxs,
+    flex: 1,
+    flexShrink: 1,
+  },
+  scrollRoot: {
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.xxs,
+    flexShrink: 0,
   },
   headerLabel: {
     fontSize: 13,
     color: colors.textSecondary,
+    flexShrink: 1,
   },
   shareBtn: {
     flexDirection: 'row',
@@ -277,7 +412,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: borderRadius.xl,
     padding: spacing.lg,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -356,6 +491,23 @@ const styles = StyleSheet.create({
   starsRow: {
     flexDirection: 'row',
     gap: 1,
+  },
+  cellarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xxs,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+  },
+  cellarBtnText: {
+    color: colors.accentRed,
+    fontSize: 13,
+    fontWeight: '600',
   },
   detailGrid: {
     gap: spacing.sm,
@@ -475,6 +627,44 @@ const styles = StyleSheet.create({
   altNote: {
     fontSize: 13,
     color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  noteCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  noteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    marginBottom: spacing.sm,
+  },
+  noteLabel: {
+    textTransform: 'uppercase',
+    color: colors.accentRed,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  noteRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  noteRatingLabel: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  noteText: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    lineHeight: 20,
     fontStyle: 'italic',
   },
   actions: {

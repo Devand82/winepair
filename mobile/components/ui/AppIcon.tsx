@@ -26,6 +26,12 @@ import {
   Bookmark,
   ChefHat,
   Grape,
+  Plus,
+  Pencil,
+  DollarSign,
+  QrCode,
+  Download,
+  FileText,
 } from 'lucide-react-native';
 import { colors, iconSize } from '../../theme';
 
@@ -56,6 +62,12 @@ const iconMap = {
   bookmark: Bookmark,
   'chef-hat': ChefHat,
   grape: Grape,
+  plus: Plus,
+  pencil: Pencil,
+  'dollar-sign': DollarSign,
+  'qr-code': QrCode,
+  download: Download,
+  'file-text': FileText,
 } as const;
 
 export type IconName = keyof typeof iconMap;

@@ -4,10 +4,11 @@
     "slug": "winepair",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#13100d",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FCFBF8",
     "splash": {
-      "backgroundColor": "#13100d"
+      "backgroundColor": "#FCFBF8"
     },
     "ios": {
       "supportsTablet": false,
@@ -20,7 +21,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#13100d"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FCFBF8"
       },
       "package": "com.yourname.winepair",
       "permissions": [
@@ -46,6 +48,12 @@
         {
           "photosPermission": "Accesso alla galleria per scansionare il menù",
           "cameraPermission": "Accesso alla fotocamera per fotografare il menù"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Accesso alla fotocamera per scansionare QR code del menù"
         }
       ],
       [

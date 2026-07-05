@@ -118,8 +118,14 @@ export default function HistoryScreen() {
               </Text>
             </View>
             <Text style={styles.cardFood}>Per: {item.foodName}</Text>
+            {item.tastingNote ? (
+              <Text style={styles.cardNote} numberOfLines={1}>{item.tastingNote}</Text>
+            ) : null}
             <View style={styles.cardFooter}>
               <StarRating score={item.score} />
+              {item.personalRating ? (
+                <StarRating score={item.personalRating} />
+              ) : null}
               <Text style={styles.cardDate}>
                 {formatDate(item.date)}
               </Text>
@@ -235,6 +241,13 @@ const styles = StyleSheet.create({
   starsRow: {
     flexDirection: 'row',
     gap: 2,
+  },
+  cardNote: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: spacing.xxs,
+    marginLeft: 36,
   },
   cardDate: {
     fontSize: 12,

@@ -3,6 +3,7 @@ export interface Food {
   category: 'antipasto' | 'primo' | 'secondo' | 'dolce' | 'altro';
   emoji: string;
   description?: string;
+  menu_price?: string;
 }
 
 export interface Wine {
@@ -17,6 +18,7 @@ export interface Wine {
 export interface MenuData {
   foods: Food[];
   wines: Wine[];
+  raw_text?: string;
 }
 
 export interface PairingResult {
@@ -54,4 +56,50 @@ export interface PairingRecord {
   score: number;
   result: PairingResult;
   wines: Wine[];
+  tastingNote?: string;
+  personalRating?: number;
+}
+
+export interface FoodSuggestion {
+  name: string;
+  category: string;
+  emoji: string;
+  description?: string;
+  score: number;
+  pairing_reason: string;
+  pairing_principle: string;
+}
+
+export interface PairReverseResponse {
+  suggestions: FoodSuggestion[];
+}
+
+export interface IdentifiedWine {
+  name: string;
+  type: string;
+  region?: string;
+  vintage?: string | null;
+  alcohol?: string;
+  grape?: string;
+  description?: string;
+  serving_temp?: string;
+}
+
+export interface CellarWine {
+  id: string;
+  name: string;
+  type: 'rosso' | 'bianco' | 'rosè' | 'spumante' | 'dolce';
+  region?: string;
+  vintage?: string | null;
+  price?: string;
+  bottleCount: number;
+  note?: string;
+  addedAt: string;
+}
+
+export interface LookupPriceResponse {
+  market_price: string;
+  currency?: string;
+  source?: string;
+  confidence?: string;
 }

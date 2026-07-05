@@ -1,41 +1,18 @@
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { colors, spacing, iconSize } from '../../theme';
 import { AppIcon } from '../../components/ui/AppIcon';
 import type { IconName } from '../../components/ui/AppIcon';
 
-function TabIcon({ focused, icon, label }: { focused: boolean; icon: IconName; label: string }) {
+function TabIcon({ focused, icon }: { focused: boolean; icon: IconName }) {
   return (
-    <View style={tabIconStyles.container}>
-      <AppIcon
-        name={icon}
-        size={focused ? iconSize.lg : iconSize.md}
-        color={focused ? colors.accentRed : colors.textSecondary}
-      />
-      <Text style={[tabIconStyles.label, focused && tabIconStyles.labelFocused]}>
-        {label}
-      </Text>
-    </View>
+    <AppIcon
+      name={icon}
+      size={focused ? iconSize.lg : iconSize.md}
+      color={focused ? colors.accentRed : colors.textSecondary}
+    />
   );
 }
-
-const tabIconStyles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-    paddingTop: spacing.xs,
-  },
-  label: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  labelFocused: {
-    color: colors.accentRed,
-    fontWeight: '600',
-  },
-});
 
 export default function TabsLayout() {
   return (
@@ -46,16 +23,24 @@ export default function TabsLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: StyleSheet.hairlineWidth,
-          height: 64,
+          height: 70,
         },
-        tabBarShowLabel: false,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '500',
+          color: colors.textSecondary,
+          marginBottom: spacing.xxs,
+        },
+        tabBarActiveTintColor: colors.accentRed,
+        tabBarInactiveTintColor: colors.textSecondary,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
+          tabBarLabel: 'Abbina',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="wine" label="Abbina" />
+            <TabIcon focused={focused} icon="wine" />
           ),
         }}
       />
@@ -72,8 +57,28 @@ export default function TabsLayout() {
           },
           headerShadowVisible: false,
           headerTitleAlign: 'center',
+          tabBarLabel: 'Cronologia',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="history" label="Cronologia" />
+            <TabIcon focused={focused} icon="history" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="cellar"
+        options={{
+          headerShown: true,
+          headerTitle: 'Cantina',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTitleStyle: {
+            fontFamily: 'PlayfairDisplay_700Bold',
+            fontSize: 20,
+            color: colors.textPrimary,
+          },
+          headerShadowVisible: false,
+          headerTitleAlign: 'center',
+          tabBarLabel: 'Cantina',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} icon="grape" />
           ),
         }}
       />
@@ -90,8 +95,9 @@ export default function TabsLayout() {
           },
           headerShadowVisible: false,
           headerTitleAlign: 'center',
+          tabBarLabel: 'Impostazioni',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="settings" label="Impostazioni" />
+            <TabIcon focused={focused} icon="settings" />
           ),
         }}
       />

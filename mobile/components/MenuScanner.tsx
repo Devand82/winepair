@@ -9,16 +9,20 @@ import {
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, borderRadius, iconSize } from '../theme';
 import { AppIcon } from './ui/AppIcon';
-import { useSettings } from '../hooks/useSettings';
 import { api } from '../services/api';
-import type { MenuData } from '../types';
+import { cellarStorage } from '../services/cellar';
+import QRScanner from './QRScanner';
+import type { MenuData, IdentifiedWine, CellarWine } from '../types';
 
 const SAMPLE_MENU = `ANTIPASTI
 Bruschetta al pomodoro fresco - 8€
@@ -58,15 +62,24 @@ interface Props {
 }
 
 export default function MenuScanner({ onMenuExtracted }: Props) {
-  const { apiUrl, model } = useSettings();
   const insets = useSafeAreaInsets();
   const [menuText, setMenuText] = useState('');
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const [loadingText, setLoadingText] = useState(LOADING_TEXTS[0]);
+  const [currentModel, setCurrentModel] = useState('openrouter/free');
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [menuUrl, setMenuUrl] = useState('');
+  const [urlLoading, setUrlLoading] = useState(false);
 
-  const visionUnsupported = model === 'anthropic/claude-3.5-haiku';
+  useEffect(() => {
+    AsyncStorage.getItem('@winepair/model').then((m) => {
+      if (m) setCurrentModel(m);
+    });
+  }, []);
+
+  const visionUnsupported = currentModel === 'anthropic/claude-3.5-haiku';
   const loadingInterval = useRef<ReturnType<typeof setInterval>>();
 
   useEffect(() => {
@@ -108,7 +121,7 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
         quality: 0.8,
       });
       if (!result.canceled && result.assets?.[0]) {
-        setImageUri(result.assets[0].uri);
+        setImageUris((prev) => [...prev, result.assets[0].uri]);
       }
     } catch (e: any) {
       Alert.alert('Errore fotocamera', e?.message || 'Impossibile aprire la fotocamera.');
@@ -122,20 +135,35 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 0.8,
+        allowsMultipleSelection: true,
       });
-      if (!result.canceled && result.assets?.[0]) {
-        setImageUri(result.assets[0].uri);
+      if (!result.canceled && result.assets?.length) {
+        const uris = result.assets.map((a) => a.uri);
+        setImageUris((prev) => [...prev, ...uris]);
       }
     } catch (e: any) {
       Alert.alert('Errore galleria', e?.message || 'Impossibile aprire la galleria.');
     }
   };
 
+  const removeImage = (uri: string) => {
+    setImageUris((prev) => prev.filter((u) => u !== uri));
+  };
+
   const handleAnalyze = async () => {
-    if (!menuText.trim() && !imageUri) {
+    if (!menuText.trim() && imageUris.length === 0) {
       Alert.alert('Inserisci il menù', 'Scatta una foto o incolla il testo del menù.');
       return;
     }
+    // Legge impostazioni fresche da AsyncStorage (potrebbero essere state cambiate in Settings)
+    const [storedUrl, storedModel] = await Promise.all([
+      AsyncStorage.getItem('@winepair/api_url'),
+      AsyncStorage.getItem('@winepair/model'),
+    ]);
+    const apiUrl = storedUrl || 'http://178.105.49.3:8000';
+    const model = storedModel || 'openrouter/free';
+    setCurrentModel(model);
+
     setLoading(true);
     let idx = 0;
     loadingInterval.current = setInterval(() => {
@@ -145,11 +173,11 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
 
     try {
       let data: MenuData;
-      if (imageUri) {
-        const imageModel = visionUnsupported ? 'openrouter/free' : model;
+      if (imageUris.length > 0) {
+        const imageModel = model === 'anthropic/claude-3.5-haiku' ? 'openrouter/free' : model;
         data = await api.extractImage(
           apiUrl,
-          imageUri,
+          imageUris,
           'image/jpeg',
           imageModel,
           menuText || undefined,
@@ -168,10 +196,13 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
         );
         return;
       }
+      if (data.raw_text) {
+        setMenuText(data.raw_text);
+      }
       onMenuExtracted(data);
     } catch (e: any) {
       const msg = e.message || 'Impossibile analizzare il menù.';
-      const detail = imageUri
+      const detail = imageUris.length > 0
         ? 'Errore durante l\'analisi dell\'immagine. Verifica che il server sia raggiungibile e riprova.'
         : 'Verifica che il server sia raggiungibile e riprova.';
       Alert.alert('Errore', `${msg}\n\n${detail}`);
@@ -181,11 +212,137 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
     }
   };
 
+  const handleFetchUrl = async () => {
+    const url = menuUrl.trim();
+    if (!url) {
+      Alert.alert('Inserisci URL', 'Incolla l\'URL del menù digitale.');
+      return;
+    }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      Alert.alert('URL non valido', 'L\'URL deve iniziare con http:// o https://');
+      return;
+    }
+    const [storedUrl, storedModel] = await Promise.all([
+      AsyncStorage.getItem('@winepair/api_url'),
+      AsyncStorage.getItem('@winepair/model'),
+    ]);
+    const apiUrl = storedUrl || 'http://178.105.49.3:8000';
+    const model = storedModel || 'openrouter/free';
+    setUrlLoading(true);
+    try {
+      const data = await api.fetchMenu(apiUrl, url, model);
+      if (data.foods.length === 0) {
+        Alert.alert('Nessun piatto trovato', 'Nessun piatto trovato nel menù scaricato.');
+        return;
+      }
+      if (data.wines.length === 0) {
+        Alert.alert('Nessun vino trovato', 'Assicurati che il menù includa la carta vini.');
+        return;
+      }
+      if (data.raw_text) {
+        setMenuText(data.raw_text);
+      }
+      onMenuExtracted(data);
+    } catch (e: any) {
+      Alert.alert('Errore', e.message || 'Impossibile scaricare il menù dall\'URL.');
+    } finally {
+      setUrlLoading(false);
+    }
+  };
+
+  const handleScanLabel = async () => {
+    const ok = await requestCamera();
+    if (!ok) return;
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.9,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      setLoading(true);
+      const storedUrl = await AsyncStorage.getItem('@winepair/api_url');
+      const apiUrl = storedUrl || 'http://178.105.49.3:8000';
+      const wineData: IdentifiedWine = await api.identifyWine(
+        apiUrl,
+        result.assets[0].uri,
+        'openai/gpt-4o',
+      );
+      const cellarWine: CellarWine = {
+        id: Date.now().toString(),
+        name: wineData.name,
+        type: (wineData.type as CellarWine['type']) || 'rosso',
+        region: wineData.region,
+        vintage: wineData.vintage,
+        bottleCount: 1,
+        addedAt: new Date().toISOString(),
+      };
+      await cellarStorage.add(cellarWine);
+      Alert.alert(
+        'Vino identificato!',
+        `${wineData.name}${wineData.region ? ` (${wineData.region})` : ''} è stato aggiunto alla tua cantina.`,
+      );
+    } catch (e: any) {
+      Alert.alert('Errore', e.message || 'Impossibile identificare il vino.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      setLoading(true);
+      const storedUrl = await AsyncStorage.getItem('@winepair/api_url');
+      const storedModel = await AsyncStorage.getItem('@winepair/model');
+      const apiUrl = storedUrl || 'http://178.105.49.3:8000';
+      const model = storedModel || 'openrouter/free';
+      const files = result.assets.map((a) => ({
+        uri: a.uri,
+        type: a.mimeType || 'application/octet-stream',
+        name: a.name || `file_${Date.now()}`,
+      }));
+      const data = await api.extractDocument(apiUrl, files, model, menuText || undefined);
+      if (data.foods.length === 0) {
+        Alert.alert('Nessun piatto trovato', 'Nessun piatto trovato nel documento.');
+        return;
+      }
+      if (data.wines.length === 0) {
+        Alert.alert('Nessun vino trovato', 'Assicurati di includere la carta vini.');
+        return;
+      }
+      if (data.raw_text) {
+        setMenuText(data.raw_text);
+      }
+      onMenuExtracted(data);
+    } catch (e: any) {
+      Alert.alert('Errore', e.message || 'Impossibile analizzare il documento.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <>
+      <Modal
+        visible={showQRScanner}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowQRScanner(false)}
+      >
+        <QRScanner
+          onMenuExtracted={onMenuExtracted}
+          onClose={() => setShowQRScanner(false)}
+        />
+      </Modal>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -194,45 +351,122 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
         <Text style={styles.title}>Scannerizza il Menù</Text>
         <Text style={styles.subtitle}>Scatta una foto o incolla il testo del menù</Text>
 
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            onPress={pickCamera}
-            disabled={loading}
-            activeOpacity={0.75}
-          >
-            <AppIcon name="camera" size={iconSize.lg} color="#fff" />
-            <Text style={styles.primaryBtnText}>Fotocamera</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.outlineBtn}
-            onPress={pickGallery}
-            disabled={loading}
-            activeOpacity={0.75}
-          >
-            <AppIcon name="image" size={iconSize.lg} color={colors.textPrimary} />
-            <Text style={styles.outlineBtnText}>Galleria</Text>
-          </TouchableOpacity>
-        </View>
-
-        {imageUri && (
-          <View style={styles.previewSection}>
-            <Image source={{ uri: imageUri }} style={styles.preview} />
-            {visionUnsupported && (
-              <Text style={styles.visionNote}>
-                Il modello selezionato non supporta le immagini. Verrà usato openrouter/free.
-              </Text>
-            )}
+        <View style={styles.buttonRow2}>
+          <View style={styles.buttonRowLine}>
             <TouchableOpacity
-              style={styles.removeBtn}
-              onPress={() => setImageUri(null)}
+              style={styles.primaryBtn}
+              onPress={pickCamera}
+              disabled={loading}
               activeOpacity={0.75}
             >
-              <AppIcon name="close" size={14} color={colors.accentRed} />
-              <Text style={styles.removeBtnText}>Rimuovi</Text>
+              <AppIcon name="camera" size={iconSize.lg} color="#fff" />
+              <Text style={styles.primaryBtnText}>Fotocamera</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.outlineBtn}
+              onPress={pickGallery}
+              disabled={loading}
+              activeOpacity={0.75}
+            >
+              <AppIcon name="image" size={iconSize.lg} color={colors.textPrimary} />
+              <Text style={styles.outlineBtnText}>Galleria</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.outlineBtn}
+              onPress={pickDocument}
+              disabled={loading || urlLoading}
+              activeOpacity={0.75}
+            >
+              <AppIcon name="file-text" size={iconSize.lg} color={colors.textPrimary} />
+              <Text style={styles.outlineBtnText}>Documento</Text>
             </TouchableOpacity>
           </View>
+          <View style={styles.buttonRowLine}>
+            <TouchableOpacity
+              style={styles.outlineBtn}
+              onPress={handleScanLabel}
+              disabled={loading}
+              activeOpacity={0.75}
+            >
+              <AppIcon name="scan" size={iconSize.lg} color={colors.textPrimary} />
+              <Text style={styles.outlineBtnText}>Etichetta</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.outlineBtn}
+              onPress={() => setShowQRScanner(true)}
+              disabled={loading || urlLoading}
+              activeOpacity={0.75}
+            >
+              <AppIcon name="qr-code" size={iconSize.lg} color={colors.textPrimary} />
+              <Text style={styles.outlineBtnText}>QR Code</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {imageUris.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageCarousel}
+            contentContainerStyle={styles.imageCarouselContent}
+          >
+            {imageUris.map((uri) => (
+              <View key={uri} style={styles.imagePreviewWrap}>
+                <Image source={{ uri }} style={styles.previewImage} />
+                <TouchableOpacity
+                  style={styles.imageRemove}
+                  onPress={() => removeImage(uri)}
+                  activeOpacity={0.75}
+                >
+                  <AppIcon name="close" size={12} color={colors.accentRed} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
         )}
+
+        {visionUnsupported && imageUris.length > 0 && (
+          <Text style={styles.visionNote}>
+            Il modello selezionato non supporta le immagini. Verrà usato openrouter/free.
+          </Text>
+        )}
+
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>oppure</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <Text style={styles.inputLabel}>URL MENÙ DIGITALE</Text>
+        <TextInput
+          style={[styles.input, { minHeight: 44 }]}
+          value={menuUrl}
+          onChangeText={setMenuUrl}
+          placeholder="Incolla URL del menù digitale…"
+          placeholderTextColor={colors.textSecondary}
+          editable={!urlLoading}
+          keyboardType="url"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <TouchableOpacity
+          style={[styles.analyzeBtn, { marginTop: spacing.sm, marginBottom: spacing.lg }, urlLoading && styles.analyzeBtnDisabled]}
+          onPress={handleFetchUrl}
+          activeOpacity={0.75}
+          disabled={urlLoading}
+        >
+          {urlLoading ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color="#fff" size="small" />
+              <Text style={styles.analyzeBtnText}>Scaricamento…</Text>
+            </View>
+          ) : (
+            <View style={styles.loadingRow}>
+              <AppIcon name="download" size={iconSize.md} color="#fff" />
+              <Text style={styles.analyzeBtnText}>Scarica menù</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         <View style={styles.divider}>
           <View style={styles.dividerLine} />
@@ -288,6 +522,7 @@ export default function MenuScanner({ onMenuExtracted }: Props) {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+    </>
   );
 }
 
@@ -314,10 +549,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.xl,
   },
-  buttonRow: {
-    flexDirection: 'row',
+  buttonRow2: {
     gap: spacing.sm,
     marginBottom: spacing.md,
+  },
+  buttonRowLine: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   primaryBtn: {
     flex: 1,
@@ -347,16 +585,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  previewSection: {
-    marginBottom: spacing.xs,
-    gap: spacing.xs,
+  imageCarousel: {
+    marginBottom: spacing.sm,
   },
-  preview: {
-    height: 220,
-    width: '100%',
+  imageCarouselContent: {
+    gap: spacing.sm,
+  },
+  imagePreviewWrap: {
+    position: 'relative',
+  },
+  previewImage: {
+    width: 140,
+    height: 140,
     borderRadius: borderRadius.lg,
-    resizeMode: 'contain',
-    backgroundColor: colors.surfaceSoft,
+    resizeMode: 'cover',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  imageRemove: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -365,21 +620,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     textAlign: 'center',
-  },
-  removeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xxs,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  removeBtnText: {
-    color: colors.accentRed,
-    fontSize: 13,
-    fontWeight: '600',
+    marginBottom: spacing.sm,
   },
   divider: {
     flexDirection: 'row',
