@@ -4,6 +4,7 @@ export interface Food {
   emoji: string;
   description?: string;
   menu_price?: string;
+  weight?: 'leggero' | 'medio' | 'pesante';
 }
 
 export interface Wine {
@@ -13,6 +14,8 @@ export interface Wine {
   vintage?: string | null;
   menu_price?: string;
   glass_available?: boolean;
+  description?: string;
+  body?: 'leggero' | 'medio' | 'pieno';
 }
 
 export interface MenuData {
@@ -102,4 +105,11 @@ export interface LookupPriceResponse {
   currency?: string;
   source?: string;
   confidence?: string;
+}
+
+export interface BackupData {
+  version: number;
+  exportedAt: string;
+  history: PairingRecord[];
+  cellar: CellarWine[];
 }

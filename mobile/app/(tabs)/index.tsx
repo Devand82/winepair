@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Animated,
-  Alert,
   Modal,
   SafeAreaView,
   TextInput,
@@ -14,207 +13,72 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, borderRadius, iconSize } from '../../theme';
 import { AppIcon } from '../../components/ui/AppIcon';
-import { api } from '../../services/api';
 import { offlineCache } from '../../services/offlineCache';
-import { offlinePairing } from '../../services/offlinePairing';
 import MenuScanner from '../../components/MenuScanner';
 import FoodGrid from '../../components/FoodGrid';
 import WineList from '../../components/WineList';
 import LoadingWine from '../../components/LoadingWine';
 import WineResult from '../../components/WineResult';
-import type { MenuData, PairingResult, PairingRecord, Wine } from '../../types';
+import { usePairingStore } from '../../store/usePairingStore';
 
-type Step = 'scan' | 'foods' | 'pairing' | 'result' | 'multi-result';
-
-const STEP_ORDER: Step[] = ['scan', 'foods', 'pairing', 'result'];
+const STEP_ORDER: ('scan' | 'foods' | 'pairing' | 'result')[] = ['scan', 'foods', 'pairing', 'result'];
+const budgetPresets = [0, 15, 25, 35, 50, 100];
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
 
-  const [step, setStep] = useState<Step>('scan');
-  const [menuData, setMenuData] = useState<MenuData | null>(null);
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  const [selectedIndexes, setSelectedIndexes] = useState<number[]>([]);
-  const [pairingResult, setPairingResult] = useState<PairingResult | null>(null);
-  const [multiResults, setMultiResults] = useState<PairingResult[]>([]);
-  const [multiResultIdx, setMultiResultIdx] = useState(0);
-  const [multiMode, setMultiMode] = useState(false);
-  const [budget, setBudget] = useState<number | null>(null);
-  const [showBudgetPicker, setShowBudgetPicker] = useState(false);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteText, setNoteText] = useState('');
-  const [noteRating, setNoteRating] = useState(0);
-  const [currentRecord, setCurrentRecord] = useState<PairingRecord | null>(null);
-  const [selectedWineIndexes, setSelectedWineIndexes] = useState<number[]>([]);
+  const step = usePairingStore((s) => s.step);
+  const menuData = usePairingStore((s) => s.menuData);
+  const selectedIdx = usePairingStore((s) => s.selectedIdx);
+  const selectedIndexes = usePairingStore((s) => s.selectedIndexes);
+  const selectedWineIndexes = usePairingStore((s) => s.selectedWineIndexes);
+  const multiMode = usePairingStore((s) => s.multiMode);
+  const budget = usePairingStore((s) => s.budget);
+  const pairingResult = usePairingStore((s) => s.pairingResult);
+  const multiResults = usePairingStore((s) => s.multiResults);
+  const multiResultIdx = usePairingStore((s) => s.multiResultIdx);
+  const currentRecord = usePairingStore((s) => s.currentRecord);
+  const showNoteModal = usePairingStore((s) => s.showNoteModal);
+  const noteText = usePairingStore((s) => s.noteText);
+
+  const setStep = usePairingStore((s) => s.setStep);
+  const setMenuData = usePairingStore((s) => s.setMenuData);
+  const setMultiMode = usePairingStore((s) => s.setMultiMode);
+  const setBudget = usePairingStore((s) => s.setBudget);
+  const setShowNoteModal = usePairingStore((s) => s.setShowNoteModal);
+  const setNoteText = usePairingStore((s) => s.setNoteText);
+  const setNoteRating = usePairingStore((s) => s.setNoteRating);
+  const selectFood = usePairingStore((s) => s.selectFood);
+  const selectWine = usePairingStore((s) => s.selectWine);
+  const pairWine = usePairingStore((s) => s.pairWine);
+  const handleMultiPair = usePairingStore((s) => s.handleMultiPair);
+  const handleSaveNote = usePairingStore((s) => s.handleSaveNote);
+  const reset = usePairingStore((s) => s.reset);
 
   const pairBtnY = useRef(new Animated.Value(100)).current;
   const multiCarouselRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    if (selectedIdx !== null) {
-      Animated.spring(pairBtnY, { toValue: 0, useNativeDriver: true, speed: 18 }).start();
-    } else {
-      Animated.spring(pairBtnY, { toValue: 100, useNativeDriver: true, speed: 18 }).start();
-    }
+    Animated.spring(pairBtnY, {
+      toValue: selectedIdx !== null ? 0 : 100,
+      useNativeDriver: true,
+      speed: 18,
+    }).start();
   }, [selectedIdx, pairBtnY]);
 
-  const saveToHistory = async (record: PairingRecord) => {
-    const raw = await AsyncStorage.getItem('@winepair/history');
-    const history: PairingRecord[] = raw ? JSON.parse(raw) : [];
-    const updated = [record, ...history].slice(0, 50);
-    await AsyncStorage.setItem('@winepair/history', JSON.stringify(updated));
+  const handleNewMenu = () => {
+    reset();
   };
 
-  const activeWines = useCallback((): Wine[] => {
-    if (!menuData) return [];
-    if (selectedWineIndexes.length === 0) return menuData.wines;
-    return menuData.wines.filter((_, i) => selectedWineIndexes.includes(i));
-  }, [menuData, selectedWineIndexes]);
-
-  const pairWine = useCallback(async () => {
-    if (!menuData || selectedIdx == null) return;
-    const food = menuData.foods[selectedIdx];
-    const wines = activeWines();
-    if (wines.length === 0) {
-      Alert.alert('Nessun vino', 'Seleziona almeno un vino per l\'abbinamento.');
-      return;
-    }
-    setStep('pairing');
-    const [freshUrl, freshModel] = await Promise.all([
-      AsyncStorage.getItem('@winepair/api_url'),
-      AsyncStorage.getItem('@winepair/model'),
-    ]);
-    const activeUrl = freshUrl || 'http://178.105.49.3:8000';
-    const activeModel = freshModel || 'openrouter/free';
-    try {
-      const result = await api.pairWine(activeUrl, food, wines, activeModel, budget ?? undefined);
-      const record: PairingRecord = {
-        id: Date.now().toString(),
-        date: new Date().toISOString(),
-        foodName: food.name,
-        wineName: result.wine_name,
-        score: result.food_match_score || 0,
-        result,
-        wines,
-      };
-      await saveToHistory(record);
-      setCurrentRecord(record);
-      setPairingResult(result);
-      setStep('result');
-    } catch (e: any) {
-      const offline = offlinePairing(food, wines);
-      if (offline) {
-        const record: PairingRecord = {
-          id: Date.now().toString(),
-          date: new Date().toISOString(),
-          foodName: food.name,
-          wineName: offline.wine_name,
-          score: offline.food_match_score || 0,
-          result: offline,
-          wines,
-        };
-        await saveToHistory(record);
-        setCurrentRecord(record);
-        setPairingResult(offline);
-        setStep('result');
-      } else {
-        Alert.alert('Errore abbinamento', e.message || 'Impossibile completare l\'abbinamento.');
-        setStep('foods');
-      }
-    }
-  }, [menuData, selectedIdx, budget, activeWines]);
-
-  const handleMultiPair = useCallback(async () => {
-    if (!menuData || selectedIndexes.length === 0) return;
-    const wines = activeWines();
-    if (wines.length === 0) {
-      Alert.alert('Nessun vino', 'Seleziona almeno un vino per l\'abbinamento.');
-      return;
-    }
-    setStep('pairing');
-    const [freshUrl, freshModel] = await Promise.all([
-      AsyncStorage.getItem('@winepair/api_url'),
-      AsyncStorage.getItem('@winepair/model'),
-    ]);
-    const activeUrl = freshUrl || 'http://178.105.49.3:8000';
-    const activeModel = freshModel || 'openrouter/free';
-    const results: PairingResult[] = [];
-    try {
-      for (const idx of selectedIndexes) {
-        const food = menuData.foods[idx];
-        const result = await api.pairWine(activeUrl, food, wines, activeModel, budget ?? undefined);
-        results.push(result);
-        const record: PairingRecord = {
-          id: Date.now().toString() + idx,
-          date: new Date().toISOString(),
-          foodName: food.name,
-          wineName: result.wine_name,
-          score: result.food_match_score || 0,
-          result,
-          wines,
-        };
-        await saveToHistory(record);
-      }
-      setMultiResults(results);
-      setMultiResultIdx(0);
-      setStep('multi-result');
-    } catch (e: any) {
-      Alert.alert('Errore abbinamento', e.message || 'Impossibile completare gli abbinamenti.');
-      setStep('foods');
-    }
-  }, [menuData, selectedIndexes, budget, activeWines]);
-
-  const handleNewMenu = useCallback(() => {
-    setStep('scan');
-    setMenuData(null);
-    setSelectedIdx(null);
-    setSelectedIndexes([]);
-    setSelectedWineIndexes([]);
-    setPairingResult(null);
-    setMultiResults([]);
-    setMultiMode(false);
-    setBudget(null);
-    setCurrentRecord(null);
-  }, []);
-
-  const handleSaveNote = async () => {
-    if (!currentRecord) return;
-    currentRecord.tastingNote = noteText.trim() || undefined;
-    currentRecord.personalRating = noteRating > 0 ? noteRating * 2 : undefined;
-    const raw = await AsyncStorage.getItem('@winepair/history');
-    const history: PairingRecord[] = raw ? JSON.parse(raw) : [];
-    const idx = history.findIndex((r) => r.id === currentRecord.id);
-    if (idx !== -1) {
-      history[idx] = currentRecord;
-      await AsyncStorage.setItem('@winepair/history', JSON.stringify(history));
-    }
-    setShowNoteModal(false);
-    setNoteText('');
-    setNoteRating(0);
+  const handleOnMenuExtracted = (data: any) => {
+    offlineCache.saveLastMenu(data);
+    setMenuData(data);
+    setStep('foods');
   };
 
-  const handleSelect = (index: number) => {
-    if (multiMode) {
-      setSelectedIndexes((prev) =>
-        prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
-      );
-    } else {
-      setSelectedIdx(index);
-    }
-  };
-
-  const handleWineSelect = (index: number) => {
-    setSelectedWineIndexes((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
-    );
-  };
-
-  const stepIndex = STEP_ORDER.indexOf(step as Step);
-
-  const budgetPresets = [0, 15, 25, 35, 50, 100];
+  const stepIndex = STEP_ORDER.indexOf(step as (typeof STEP_ORDER)[number]);
 
   return (
     <View style={styles.root}>
@@ -240,14 +104,14 @@ export default function HomeScreen() {
             )}
             {step === 'foods' && (
               <View style={styles.headerRow}>
-                <TouchableOpacity onPress={() => { setStep('scan'); setSelectedIdx(null); setSelectedIndexes([]); }} activeOpacity={0.75} style={styles.backRow}>
+                <TouchableOpacity onPress={() => setStep('scan')} activeOpacity={0.75} style={styles.backRow}>
                   <AppIcon name="chevron-left" size={iconSize.sm} color={colors.accentRed} />
                   <Text style={styles.backText}>Indietro</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Scegli il piatto</Text>
-                <TouchableOpacity onPress={() => setShowBudgetPicker(!showBudgetPicker)} activeOpacity={0.75} style={styles.budgetToggle}>
+                <TouchableOpacity onPress={() => setBudget(budget ? null : 0)} activeOpacity={0.75} style={styles.budgetToggle}>
                   <AppIcon name="dollar-sign" size={iconSize.sm} color={budget ? colors.accentRed : colors.textSecondary} />
-                  {budget && <Text style={styles.budgetLabel}>{budget}€</Text>}
+                  {budget ? <Text style={styles.budgetLabel}>{budget}€</Text> : null}
                 </TouchableOpacity>
               </View>
             )}
@@ -280,41 +144,10 @@ export default function HomeScreen() {
         </>
       )}
       {step === 'scan' && (
-        <MenuScanner
-          onMenuExtracted={(data) => {
-            offlineCache.saveLastMenu(data);
-            setMenuData(data);
-            setSelectedIdx(null);
-            setSelectedIndexes([]);
-            setStep('foods');
-          }}
-        />
+        <MenuScanner onMenuExtracted={handleOnMenuExtracted} />
       )}
       {step === 'foods' && menuData && (
         <View style={styles.foodsContainer}>
-          {showBudgetPicker && (
-            <View style={styles.budgetPicker}>
-              <Text style={styles.budgetPickerTitle}>Budget massimo per vino</Text>
-              <View style={styles.budgetRow}>
-                {budgetPresets.map((p) => (
-                  <TouchableOpacity
-                    key={p}
-                    activeOpacity={0.75}
-                    onPress={() => setBudget(p === 0 ? null : p)}
-                    style={[
-                      styles.budgetChip,
-                      p > 0 && budget === p && styles.budgetChipSelected,
-                      p === 0 && budget === null && styles.budgetChipSelected,
-                    ]}
-                  >
-                    <Text style={[styles.budgetChipText, p > 0 && budget === p && styles.budgetChipTextSelected, p === 0 && budget === null && styles.budgetChipTextSelected]}>
-                      {p === 0 ? 'Tutti' : `${p}€`}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
           <ScrollView
             style={styles.foodsScroll}
             contentContainerStyle={styles.foodsScrollContent}
@@ -326,11 +159,7 @@ export default function HomeScreen() {
                   {menuData.foods.length} piatti · {menuData.wines.length} vini
                 </Text>
                 <TouchableOpacity
-                  onPress={() => {
-                    setMultiMode(!multiMode);
-                    setSelectedIdx(null);
-                    setSelectedIndexes([]);
-                  }}
+                  onPress={() => setMultiMode(!multiMode)}
                   activeOpacity={0.75}
                   style={[styles.modeToggle, multiMode && styles.modeToggleActive]}
                 >
@@ -344,13 +173,13 @@ export default function HomeScreen() {
               foods={menuData.foods}
               selectedIndex={selectedIdx}
               selectedIndexes={selectedIndexes}
-              onSelect={handleSelect}
+              onSelect={selectFood}
               multiSelect={multiMode}
             />
             <WineList
               wines={menuData.wines}
               selectedIndexes={selectedWineIndexes}
-              onSelect={handleWineSelect}
+              onSelect={selectWine}
             />
           </ScrollView>
           {multiMode ? (
@@ -425,7 +254,6 @@ export default function HomeScreen() {
                   onPress={() => {
                     const offset = i * Dimensions.get('window').width;
                     multiCarouselRef.current?.scrollTo({ x: offset, animated: true });
-                    setMultiResultIdx(i);
                   }}
                   activeOpacity={0.75}
                   style={styles.multiDotTouch}
@@ -447,7 +275,7 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={(e) => {
               const page = Math.round(e.nativeEvent.contentOffset.x / Dimensions.get('window').width);
-              setMultiResultIdx(page);
+              usePairingStore.getState().setStep(page === 0 ? 'multi-result' : (usePairingStore.getState().step as any));
             }}
           >
             {multiResults.map((_, i) => (
@@ -483,18 +311,10 @@ export default function HomeScreen() {
           </View>
           <View style={styles.noteForm}>
             <Text style={styles.noteFormLabel}>IL MIO VOTO</Text>
-            <View style={styles.noteStarRow}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <TouchableOpacity key={n} onPress={() => setNoteRating(n)} activeOpacity={0.75}>
-                  <AppIcon
-                    name="star"
-                    size={32}
-                    color={n <= noteRating ? colors.accentYellow : colors.border}
-                    strokeWidth={n <= noteRating ? 2.5 : 1.5}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
+            <NoteStars
+              value={usePairingStore((s) => s.noteRating)}
+              onChange={setNoteRating}
+            />
             <Text style={styles.noteFormLabel}>NOTE DI DEGUSTAZIONE</Text>
             <TextInput
               style={styles.noteInput}
@@ -507,6 +327,23 @@ export default function HomeScreen() {
           </View>
         </SafeAreaView>
       </Modal>
+    </View>
+  );
+}
+
+function NoteStars({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <View style={styles.noteStarRow}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <TouchableOpacity key={n} onPress={() => onChange(n)} activeOpacity={0.75}>
+          <AppIcon
+            name="star"
+            size={32}
+            color={n <= value ? colors.accentYellow : colors.border}
+            strokeWidth={n <= value ? 2.5 : 1.5}
+          />
+        </TouchableOpacity>
+      ))}
     </View>
   );
 }
@@ -603,45 +440,6 @@ const styles = StyleSheet.create({
   foodsContainer: { flex: 1, position: 'relative' },
   foodsScroll: { flex: 1 },
   foodsScrollContent: { paddingBottom: 100 },
-  budgetPicker: {
-    backgroundColor: colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  budgetPickerTitle: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.xs,
-  },
-  budgetRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  budgetChip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs + 2,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  budgetChipSelected: {
-    borderColor: colors.accentRed,
-    backgroundColor: '#FBECEE',
-  },
-  budgetChipText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  budgetChipTextSelected: {
-    color: colors.accentRed,
-    fontWeight: '700',
-  },
   counterBar: {
     backgroundColor: colors.surfaceSoft,
     borderBottomWidth: StyleSheet.hairlineWidth,

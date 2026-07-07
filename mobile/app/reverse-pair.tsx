@@ -11,10 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, borderRadius, iconSize } from '../theme';
 import { AppIcon } from '../components/ui/AppIcon';
 import { api } from '../services/api';
+import { settingsStorage } from '../services/settings';
 import { getWineAccent, getWineSoftBg } from '../theme/helpers';
 import type { FoodSuggestion } from '../types';
 
@@ -31,12 +31,9 @@ export default function ReversePairScreen() {
   const [model, setModel] = useState('openrouter/free');
 
   useEffect(() => {
-    Promise.all([
-      AsyncStorage.getItem('@winepair/api_url'),
-      AsyncStorage.getItem('@winepair/model'),
-    ]).then(([url, m]) => {
-      if (url) setApiUrl(url);
-      if (m) setModel(m);
+    settingsStorage.getAll().then(({ apiUrl: url, model: m }) => {
+      setApiUrl(url);
+      setModel(m);
     });
   }, []);
   const [wineType, setWineType] = useState('rosso');

@@ -9,13 +9,16 @@ import {
   Linking,
   KeyboardAvoidingView,
   Platform,
+  Alert,
   StyleSheet,
 } from 'react-native';
 import { colors, spacing, borderRadius, iconSize } from '../../theme';
 import { AppIcon } from '../../components/ui/AppIcon';
 import { useSettings } from '../../hooks/useSettings';
 import { api } from '../../services/api';
-import type { ModelInfo } from '../../types';
+import { historyStorage } from '../../services/history';
+import { cellarStorage } from '../../services/cellar';
+import type { ModelInfo, BackupData } from '../../types';
 
 const FALLBACK_MODELS: ModelInfo[] = [
   { id: 'openrouter/free', name: 'Free Router', supports_vision: true, provider: 'OpenRouter', description: 'Seleziona automaticamente il miglior modello free.' },
@@ -33,6 +36,8 @@ export default function SettingsScreen() {
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
   const [models, setModels] = useState<ModelInfo[]>(FALLBACK_MODELS);
   const [modelsLoading, setModelsLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const testTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -59,6 +64,81 @@ export default function SettingsScreen() {
       testTimeout.current = setTimeout(() => setTestStatus('idle'), 4000);
     }
   }, [apiUrl]);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const [history, cellar] = await Promise.all([
+        historyStorage.getAll(),
+        cellarStorage.getAll(),
+      ]);
+
+      const backup: BackupData = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        history,
+        cellar,
+      };
+
+      const json = JSON.stringify(backup, null, 2);
+
+      try {
+        const { writeAsStringAsync, documentDirectory } = await import('expo-file-system');
+        const { shareAsync } = await import('expo-sharing');
+        const filename = `winepair-backup-${Date.now()}.json`;
+        const fileUri = `${documentDirectory}${filename}`;
+        await writeAsStringAsync(fileUri, json);
+        await shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Salva backup WinePair' });
+      } catch {
+        Alert.alert('Esporta dati', 'Copia il JSON e salvalo manualmente:\n\n' + json.slice(0, 500) + '…');
+      }
+    } catch (e: any) {
+      Alert.alert('Errore esportazione', e.message || 'Impossibile esportare i dati.');
+    } finally {
+      setExporting(false);
+    }
+  }, []);
+
+  const handleImport = useCallback(async () => {
+    setImporting(true);
+    try {
+      const { documentDirectory, readAsStringAsync } = await import('expo-file-system');
+      const { pickAsync } = await import('expo-document-picker');
+
+      const result = await pickAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        setImporting(false);
+        return;
+      }
+
+      const content = await readAsStringAsync(result.assets[0].uri);
+      const backup = JSON.parse(content) as BackupData;
+
+      if (!backup.version || !backup.history || !backup.cellar) {
+        Alert.alert('File non valido', 'Il file selezionato non è un backup WinePair valido.');
+        setImporting(false);
+        return;
+      }
+
+      for (const record of backup.history) {
+        await historyStorage.add(record);
+      }
+      for (const wine of backup.cellar) {
+        await cellarStorage.add(wine);
+      }
+
+      Alert.alert('Import completato', `${backup.history.length} abbinamenti e ${backup.cellar.length} vini importati.`);
+    } catch (e: any) {
+      if (e.message?.includes('canceled')) return;
+      Alert.alert('Errore importazione', e.message || 'Impossibile importare i dati.');
+    } finally {
+      setImporting(false);
+    }
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -152,6 +232,39 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>BACKUP DATI</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={handleExport}
+              disabled={exporting}
+              activeOpacity={0.75}
+            >
+              <AppIcon name="share" size={18} color={colors.accentRed} />
+              <View style={styles.actionInfo}>
+                <Text style={styles.actionLabel}>Esporta backup</Text>
+                <Text style={styles.actionDesc}>Salva cronologia e cantina come file JSON</Text>
+              </View>
+              {exporting && <ActivityIndicator color={colors.accentRed} size="small" />}
+            </TouchableOpacity>
+            <View style={styles.rowDivider} />
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={handleImport}
+              disabled={importing}
+              activeOpacity={0.75}
+            >
+              <AppIcon name="download" size={18} color={colors.accentRed} />
+              <View style={styles.actionInfo}>
+                <Text style={styles.actionLabel}>Importa backup</Text>
+                <Text style={styles.actionDesc}>Carica un file JSON precedentemente esportato</Text>
+              </View>
+              {importing && <ActivityIndicator color={colors.accentRed} size="small" />}
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -340,6 +453,26 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
     marginLeft: spacing.lg + spacing.sm + 20,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  actionInfo: {
+    flex: 1,
+  },
+  actionLabel: {
+    fontSize: 15,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  actionDesc: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   infoRow: {
     flexDirection: 'row',

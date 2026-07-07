@@ -10,9 +10,9 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, iconSize } from '../../theme';
 import { AppIcon } from '../../components/ui/AppIcon';
+import { historyStorage } from '../../services/history';
 import WineResult from '../../components/WineResult';
 import type { PairingRecord } from '../../types';
 
@@ -50,8 +50,8 @@ export default function HistoryScreen() {
     useCallback(() => {
       (async () => {
         try {
-          const raw = await AsyncStorage.getItem('@winepair/history');
-          if (raw) setHistory(JSON.parse(raw));
+          const data = await historyStorage.getAll();
+          setHistory(data);
         } catch {
           // ignore
         }
@@ -62,18 +62,14 @@ export default function HistoryScreen() {
   const deleteRecord = useCallback(async (id: string) => {
     const updated = history.filter((r) => r.id !== id);
     setHistory(updated);
-    await AsyncStorage.setItem('@winepair/history', JSON.stringify(updated));
+    await historyStorage.remove(id);
   }, [history]);
 
   const confirmDelete = useCallback(
     (id: string) => {
       Alert.alert('Elimina abbinamento?', 'Non potrai recuperarlo.', [
         { text: 'Annulla', style: 'cancel' },
-        {
-          text: 'Elimina',
-          style: 'destructive',
-          onPress: () => deleteRecord(id),
-        },
+        { text: 'Elimina', style: 'destructive', onPress: () => deleteRecord(id) },
       ]);
     },
     [deleteRecord],
