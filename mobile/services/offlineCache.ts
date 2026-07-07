@@ -8,6 +8,12 @@ const CACHE_KEYS = {
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
+function abortTimeout(ms: number): AbortController {
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(), ms);
+  return ctrl;
+}
+
 export const offlineCache = {
   async saveLastMenu(data: MenuData): Promise<void> {
     await Promise.all([
@@ -36,7 +42,8 @@ export const offlineCache = {
     const apiUrl = await AsyncStorage.getItem('@winepair/api_url');
     if (!apiUrl) return false;
     try {
-      const res = await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(3000) });
+      const { signal } = abortTimeout(3000);
+      const res = await fetch(`${apiUrl}/health`, { signal });
       return res.ok;
     } catch {
       return false;
