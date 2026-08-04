@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "WinePair",
+    "slug": "winepair",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FCFBF8",
+    "splash": {
+      "backgroundColor": "#FCFBF8"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourname.winepair",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FCFBF8"
+      },
+      "package": "com.yourname.winepair",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.25",
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Accesso alla galleria per scansionare il menù",
+          "cameraPermission": "Accesso alla fotocamera per fotografare il menù"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Accesso alla fotocamera per scansionare QR code del menù"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#c4667a"
+        }
+      ],
+      "expo-font"
+    ],
+    "scheme": "winepair",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "200defb7-6b6c-4433-9dc9-a06b74a09f7f"
+      }
+    },
+    "owner": "devan82"
+  }
+}
