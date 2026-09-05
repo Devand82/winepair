@@ -35,7 +35,7 @@ interface PairingState {
   setMultiResultViewIdx: (i: number) => void;
 
   selectFood: (idx: number) => void;
-  selectWine: (indexes: number[]) => void;
+  selectWine: (idx: number) => void;
   pairWine: () => Promise<void>;
   handleMultiPair: () => Promise<void>;
   handleSaveNote: () => Promise<void>;
@@ -101,8 +101,12 @@ export const usePairingStore = create<PairingState>((set, get) => ({
     }
   },
 
-  selectWine: (indexes) => {
-    set({ selectedWineIndexes: indexes });
+  selectWine: (idx: number) => {
+    const current = get().selectedWineIndexes;
+    const next = current.includes(idx)
+      ? current.filter((i) => i !== idx)
+      : [...current, idx];
+    set({ selectedWineIndexes: next });
   },
 
   pairWine: async () => {
