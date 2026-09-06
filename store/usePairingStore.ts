@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../services/api';
 import { historyStorage } from '../services/history';
-import type { MenuData, PairingResult, PairingRecord } from '../types';
+import type { MenuData, PairingResult, PairingRecord, Wine } from '../types';
 
 type Step = 'scan' | 'foods' | 'pairing' | 'result' | 'multi-result';
 
@@ -12,6 +12,7 @@ interface PairingState {
   selectedIdx: number | null;
   selectedIndexes: number[];
   selectedWineIndexes: number[];
+  pairingWines: Wine[];
   multiMode: boolean;
   budget: number | null;
   pairingResult: PairingResult | null;
@@ -53,7 +54,7 @@ async function getModel(): Promise<string> {
 const INITIAL: Pick<
   PairingState,
   'step' | 'menuData' | 'selectedIdx' | 'selectedIndexes' | 'selectedWineIndexes' |
-  'multiMode' | 'budget' | 'pairingResult' | 'multiResults' | 'multiResultIdx' |
+  'pairingWines' | 'multiMode' | 'budget' | 'pairingResult' | 'multiResults' | 'multiResultIdx' |
   'multiResultViewIdx' | 'currentRecord' | 'showNoteModal' | 'noteText' | 'noteRating' |
   'loading' | 'error'
 > = {
@@ -62,6 +63,7 @@ const INITIAL: Pick<
   selectedIdx: null,
   selectedIndexes: [],
   selectedWineIndexes: [],
+  pairingWines: [],
   multiMode: false,
   budget: null,
   pairingResult: null,
@@ -123,6 +125,7 @@ export const usePairingStore = create<PairingState>((set, get) => ({
         ? menuData.wines.filter((_, i) => get().selectedWineIndexes.includes(i))
         : menuData.wines;
 
+      set({ pairingWines: wines });
       const result = await api.pairWine(apiUrl, food, wines, model, budget ?? undefined);
 
       const record: PairingRecord = {
@@ -157,6 +160,7 @@ export const usePairingStore = create<PairingState>((set, get) => ({
         ? menuData.wines.filter((_, i) => get().selectedWineIndexes.includes(i))
         : menuData.wines;
 
+      set({ pairingWines: wines });
       const results = await api.pairBatch(apiUrl, foods, wines, model);
 
       for (let i = 0; i < results.length; i++) {

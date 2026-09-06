@@ -34,6 +34,7 @@ export default function HomeScreen() {
   const selectedIdx = usePairingStore((s) => s.selectedIdx);
   const selectedIndexes = usePairingStore((s) => s.selectedIndexes);
   const selectedWineIndexes = usePairingStore((s) => s.selectedWineIndexes);
+  const pairingWines = usePairingStore((s) => s.pairingWines);
   const multiMode = usePairingStore((s) => s.multiMode);
   const budget = usePairingStore((s) => s.budget);
   const pairingResult = usePairingStore((s) => s.pairingResult);
@@ -228,7 +229,7 @@ export default function HomeScreen() {
       {step === 'result' && pairingResult && menuData && selectedIdx != null && (
         <WineResult
           result={pairingResult}
-          wines={menuData.wines}
+          wines={pairingWines}
           foodName={menuData.foods[selectedIdx].name}
           onBack={() => setStep('foods')}
           onNewMenu={handleNewMenu}
@@ -282,7 +283,7 @@ export default function HomeScreen() {
               <View key={i} style={{ width: Dimensions.get('window').width }}>
                 <WineResult
                   result={multiResults[i]}
-                  wines={menuData.wines}
+                  wines={pairingWines}
                   foodName={menuData.foods[selectedIndexes[i]]?.name ?? ''}
                   onBack={() => setStep('foods')}
                   onNewMenu={handleNewMenu}

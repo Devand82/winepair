@@ -61,10 +61,12 @@ export default function WineResult({
   const wineAccent = getWineAccent(result.wine_type);
   const wineSoftBg = getWineSoftBg(result.wine_type);
   const contentRef = useRef<View>(null);
-  const altWine =
-    result.alternative_wine_index != null
-      ? wines[result.alternative_wine_index]
-      : null;
+  const altWines = (result.alternatives || [])
+    .map((a) => ({
+      wine: wines[a.wine_index],
+      note: a.note,
+    }))
+    .filter((a) => a.wine);
 
   const [marketPrice, setMarketPrice] = useState<string | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
@@ -281,19 +283,26 @@ export default function WineResult({
         </View>
       ) : null}
 
-      {altWine ? (
-        <View style={styles.altCard}>
-          <Text style={styles.altLabel}>Alternativa disponibile</Text>
-          <Text style={styles.altName}>{altWine.name}</Text>
-          <Text style={styles.altDesc}>
-            {altWine.type}{altWine.region ? ` · ${altWine.region}` : ''}
+      {altWines.length > 0 ? (
+        <View>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: spacing.lg }]}>
+            Alternative
           </Text>
-          {altWine.menu_price ? (
-            <Text style={styles.altPrice}>{altWine.menu_price}</Text>
-          ) : null}
-          {result.alternative_note ? (
-            <Text style={styles.altNote}>{result.alternative_note}</Text>
-          ) : null}
+          {altWines.map((alt, i) => (
+            <View key={i} style={[styles.altCard, { marginHorizontal: spacing.lg, marginBottom: spacing.sm }]}>
+              <Text style={styles.altLabel}>Alternativa {i + 1}</Text>
+              <Text style={styles.altName}>{alt.wine.name}</Text>
+              <Text style={styles.altDesc}>
+                {alt.wine.type}{alt.wine.region ? ` · ${alt.wine.region}` : ''}
+              </Text>
+              {alt.wine.menu_price ? (
+                <Text style={styles.altPrice}>{alt.wine.menu_price}</Text>
+              ) : null}
+              {alt.note ? (
+                <Text style={styles.altNote}>{alt.note}</Text>
+              ) : null}
+            </View>
+          ))}
         </View>
       ) : null}
 

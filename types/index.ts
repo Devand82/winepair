@@ -39,8 +39,7 @@ export interface PairingResult {
   food_match_score?: number;
   pairing_reason?: string;
   pairing_principle?: string;
-  alternative_wine_index?: number | null;
-  alternative_note?: string | null;
+  alternatives?: { wine_index: number; note: string }[];
 }
 
 export interface ModelInfo {
